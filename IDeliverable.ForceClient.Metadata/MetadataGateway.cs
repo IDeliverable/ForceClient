@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.ServiceModel;
@@ -14,7 +13,7 @@ namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataGateway
     {
-        public const int MetadataApiVersion = 38;
+        public const int MetadataApiVersion = 43;
         public const int MaxListMetadataQueriesPerRequest = 3;
         public const int MaxRetrieveMetadataItemsPerRequest = 10000;
 

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using IDeliverable.Utils.Core.CollectionExtensions;
+using IDeliverable.Utils.Core.EventExtensions;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -6,25 +8,23 @@ using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using IDeliverable.Utils.Core.CollectionExtensions;
-using IDeliverable.Utils.Core.EventExtensions;
 
 namespace IDeliverable.ForceClient.Metadata
 {
-    public class RetrieveWorker : INotifyPropertyChanged
-    {
-        public RetrieveWorker(MetadataGateway gateway)
-        {
-            mGateway = gateway;
-        }
+	public class RetrieveWorker : INotifyPropertyChanged
+	{
+		public RetrieveWorker(MetadataGateway gateway)
+		{
+			mGateway = gateway;
+		}
 
-        private MetadataGateway mGateway;
+		private MetadataGateway mGateway;
 
-        public event PropertyChangedEventHandler PropertyChanged;
+		public event PropertyChangedEventHandler PropertyChanged;
 
-        public async Task<byte[]> RetrieveAllAsync(IEnumerable<MetadataType> types)
-        {
-            var retrieveItemReferences = await mGateway.ListItemsAsync(types);
+		public async Task<byte[]> RetrieveAllAsync(IEnumerable<MetadataType> types)
+		{
+			var retrieveItemReferences = await mGateway.ListItemsAsync(types);
 
 			if (!retrieveItemReferences.Any())
 				return new byte[] { };
@@ -80,11 +80,11 @@ namespace IDeliverable.ForceClient.Metadata
 
 				return resultZipStream.ToArray();
 			}
-        }
+		}
 
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.SafeRaise(ExceptionHandlingMode.Swallow, null, this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
+		protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+		{
+			PropertyChanged?.SafeRaise(ExceptionHandlingMode.Swallow, null, this, new PropertyChangedEventArgs(propertyName));
+		}
+	}
 }
