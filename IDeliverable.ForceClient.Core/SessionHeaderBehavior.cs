@@ -1,4 +1,4 @@
-﻿using System.ServiceModel.Channels;
+using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
 using System.ServiceModel.Dispatcher;
 
@@ -15,7 +15,7 @@ namespace IDeliverable.ForceClient.Core
 
         public void AddBindingParameters(ServiceEndpoint endpoint, BindingParameterCollection bindingParameters)
         {
-            
+
         }
 
         public void ApplyClientBehavior(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
@@ -25,12 +25,12 @@ namespace IDeliverable.ForceClient.Core
 
         public void ApplyDispatchBehavior(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)
         {
-            
+
         }
 
         public void Validate(ServiceEndpoint endpoint)
         {
-            
+
         }
     }
 }

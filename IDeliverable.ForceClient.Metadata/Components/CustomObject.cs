@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +8,9 @@ using IDeliverable.Utils.Core;
 
 namespace IDeliverable.ForceClient.Metadata.Components
 {
-    public class CustomObject: IGrouping<CustomObject, CustomField>
+    public class CustomObject : IGrouping<CustomObject, CustomField>
     {
-        private readonly static XName sElementName = XName.Get("CustomObject", Constants.MetadataXmlNamespace);
+        private static readonly XName sElementName = XName.Get("CustomObject", Constants.MetadataXmlNamespace);
 
         public static CustomObject FromXml(string name, XElement xml)
         {
@@ -63,10 +63,16 @@ namespace IDeliverable.ForceClient.Metadata.Components
 
         public CustomObject Key => this;
 
-        public IEnumerator<CustomField> GetEnumerator() => CustomFields.GetEnumerator();
+        public IEnumerator<CustomField> GetEnumerator()
+        {
+            return CustomFields.GetEnumerator();
+        }
 
-        IEnumerator IEnumerable.GetEnumerator() => CustomFields.GetEnumerator();
-        
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return CustomFields.GetEnumerator();
+        }
+
         #endregion
     }
 }

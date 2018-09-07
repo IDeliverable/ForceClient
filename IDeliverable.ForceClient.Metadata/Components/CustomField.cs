@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,7 +11,7 @@ using IDeliverable.Utils.Core.EventExtensions;
 
 namespace IDeliverable.ForceClient.Metadata.Components
 {
-    public class CustomField: INotifyPropertyChanged, INotifyDataErrorInfo, IRevertibleChangeTracking
+    public class CustomField : INotifyPropertyChanged, INotifyDataErrorInfo, IRevertibleChangeTracking
     {
         public CustomField(string objectName, string name, string label, string type, IEnumerable<XElement> additionalElements = null)
         {
@@ -29,7 +29,7 @@ namespace IDeliverable.ForceClient.Metadata.Components
 
         #region XML conversion
 
-        private readonly static XName sElementName = XName.Get("fields", Constants.MetadataXmlNamespace);
+        private static readonly XName sElementName = XName.Get("fields", Constants.MetadataXmlNamespace);
 
         public static CustomField FromXml(string objectName, XElement xml)
         {
@@ -67,7 +67,7 @@ namespace IDeliverable.ForceClient.Metadata.Components
         #region Navigation
 
         public string ObjectName { get; }
-        
+
         #endregion
 
         #region Properties

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace IDeliverable.ForceClient.Metadata
 {
@@ -6,18 +6,18 @@ namespace IDeliverable.ForceClient.Metadata
     {
         CustomObject,
         CustomField,
-		Dashboard,
-		Document,
-		EmailTemplate,
-		Report
+        Dashboard,
+        Document,
+        EmailTemplate,
+        Report
     }
 
-	public static class MetadataTypeExtensions
-	{
-		public static bool GetIsInFolders(this MetadataType metadataType)
-		{
-			var metadataTypesInFolders = new[] { MetadataType.Dashboard, MetadataType.Document, MetadataType.EmailTemplate, MetadataType.Report };
-			return metadataTypesInFolders.Contains(metadataType);
-		}
-	}
+    public static class MetadataTypeExtensions
+    {
+        public static bool GetIsInFolders(this MetadataType metadataType)
+        {
+            var metadataTypesInFolders = new[] { MetadataType.Dashboard, MetadataType.Document, MetadataType.EmailTemplate, MetadataType.Report };
+            return metadataTypesInFolders.Contains(metadataType);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -9,7 +9,7 @@ namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataPackage
     {
-        private readonly static XName sElementName = XName.Get("Package", Constants.MetadataXmlNamespace);
+        private static readonly XName sElementName = XName.Get("Package", Constants.MetadataXmlNamespace);
 
         public static MetadataPackage FromFiles(string name, IEnumerable<MetadataFile> files)
         {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.Serialization;
 
 namespace IDeliverable.ForceClient.Metadata.Components
@@ -26,24 +26,24 @@ namespace IDeliverable.ForceClient.Metadata.Components
         private readonly string mMessage;
 
         public string PropertyName => mPropertyName;
-        
+
         public string Message => mMessage;
-        
+
         public override string ToString()
         {
             return mMessage;
         }
-        
+
         public bool Equals(ValidationError other)
         {
             return Equals(mPropertyName, other.mPropertyName) && Equals(mMessage, other.mMessage);
         }
-        
+
         public override bool Equals(object obj)
         {
             return Equals((ValidationError)obj);
         }
-        
+
         public override int GetHashCode()
         {
             var hash = 13;
