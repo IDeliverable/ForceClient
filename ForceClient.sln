@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Me
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Core", "IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj", "{BDD6D4F0-A863-4713-AFF5-877CBF48E7FA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDeliverable.ForceClient.Tools.Metadata", "IDeliverable.ForceClient.Tools.Metadata\IDeliverable.ForceClient.Tools.Metadata.csproj", "{84919F45-6895-471A-B5E0-47F44E987C0F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Tools.Metadata", "IDeliverable.ForceClient.Tools.Metadata\IDeliverable.ForceClient.Tools.Metadata.csproj", "{84919F45-6895-471A-B5E0-47F44E987C0F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution", "Solution", "{B0EC34D4-D8E3-493F-AC22-3380F12689D8}"
 	ProjectSection(SolutionItems) = preProject
