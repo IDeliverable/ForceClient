@@ -1,8 +1,8 @@
-﻿namespace IDeliverable.ForceClient.Core
+namespace IDeliverable.ForceClient.Core
 {
     public class Constants
     {
-        public const string AuthorizationEndpointUrlProduction = "https://login.salesforce.com/services/oauth2/authorize";
-        public const string AuthorizationEndpointUrlSandbox = "https://test.salesforce.com/services/oauth2/authorize";
+        public const string AuthorizationEndpointUrlProduction = "https://login.salesforce.com/";
+        public const string AuthorizationEndpointUrlSandbox = "https://test.salesforce.com/";
     }
 }

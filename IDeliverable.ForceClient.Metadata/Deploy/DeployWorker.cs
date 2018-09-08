@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using IDeliverable.Utils.Core.EventExtensions;
 
-namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata.Deploy
 {
     public class DeployWorker : INotifyPropertyChanged
     {

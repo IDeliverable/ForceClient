@@ -70,12 +70,12 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
         public static void OpenBrowser(string url)
         {
-            try
-            {
-                Process.Start(url);
-            }
-            catch
-            {
+            //try
+            //{
+            //    Process.Start(url);
+            //}
+            //catch
+            //{
                 // hack because of this: https://github.com/dotnet/corefx/issues/10361
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
@@ -90,11 +90,11 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 {
                     Process.Start("open", url);
                 }
-                else
-                {
-                    throw;
-                }
-            }
+                //else
+                //{
+                //    throw;
+                //}
+            //}
         }
     }
 

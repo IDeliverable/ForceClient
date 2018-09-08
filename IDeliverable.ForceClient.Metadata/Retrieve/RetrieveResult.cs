@@ -1,4 +1,4 @@
-﻿namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
     public class RetrieveResult
     {
@@ -13,10 +13,5 @@
         public bool IsDone => Status == RetrieveStatus.Failed || Status == RetrieveStatus.Succeeded;
 
         public byte[] ZipFile { get; }
-
-        public MetadataArchive ToMetadataArchive()
-        {
-            return MetadataArchive.FromZipFile(ZipFile);
-        }
     }
 }

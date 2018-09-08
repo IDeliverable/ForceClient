@@ -1,4 +1,4 @@
-﻿namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
     public enum RetrieveStatus
     {

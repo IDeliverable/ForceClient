@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata.Deploy
 {
     public class DeployCanceledException : Exception
     {

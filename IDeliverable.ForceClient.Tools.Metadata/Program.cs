@@ -1,6 +1,11 @@
-using System;
+using System.IO;
 using System.Threading.Tasks;
+using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Metadata;
+using IDeliverable.ForceClient.Metadata.Retrieve;
 using IdentityModel.OidcClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace IDeliverable.ForceClient.Tools.Metadata
 {
@@ -10,7 +15,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
         {
             var options = new OidcClientOptions
             {
-                Authority = "https://login.salesforce.com/",
+                Authority = Constants.AuthorizationEndpointUrlProduction,
                 ClientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE",
                 ClientSecret = "2763444084747273086",
                 RedirectUri = "http://localhost:7890/",
@@ -21,11 +26,20 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
             var client = new OidcClient(options);
             var request = new LoginRequest();
-
             var result = await client.LoginAsync(request);
-            var token = result.AccessToken;
 
-            Console.WriteLine(token);
+            var accessToken = result.AccessToken;
+            var urlsJson = result.User.FindFirst("urls").Value;
+            var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
+            var metadataUrl = urls["metadata"].ToString();
+
+            var metadataGateway = new MetadataGateway(metadataUrl, accessToken);
+            var retrieveWorker = new RetrieveWorker(metadataGateway);
+
+            using (var fileStream = File.Create(@"C:\Temp\Metadata.zip"))
+            {
+                await retrieveWorker.RetrieveAllAsync(new[] { MetadataType.CustomObject }, fileStream);
+            }
         }
     }
 }

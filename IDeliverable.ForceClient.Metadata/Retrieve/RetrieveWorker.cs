@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using IDeliverable.Utils.Core.EventExtensions;
 
-namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
     public class RetrieveWorker : INotifyPropertyChanged
     {
@@ -22,12 +22,12 @@ namespace IDeliverable.ForceClient.Metadata
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public async Task<byte[]> RetrieveAllAsync(IEnumerable<MetadataType> types)
+        public async Task RetrieveAllAsync(IEnumerable<MetadataType> types, Stream outputStream)
         {
             var retrieveItemReferences = await mGateway.ListItemsAsync(types);
 
             if (!retrieveItemReferences.Any())
-                return new byte[] { };
+                return;
 
             // This method support retrieving more metadata items than what the Metadata API
             // supports in one operation, by partitioning the list of items into chunks,
@@ -49,12 +49,12 @@ namespace IDeliverable.ForceClient.Metadata
 
             await Task.WhenAll(retrieveTasks);
 
-            if (retrieveTasks.Length == 1)
-                return retrieveTasks.First().Result.ZipFile;
+            //if (retrieveTasks.Length == 1)
+            //    return retrieveTasks.First().Result.ZipFile;
 
-            using (var resultZipStream = new MemoryStream())
-            {
-                using (var resultZipArchive = new ZipArchive(resultZipStream, ZipArchiveMode.Create))
+            //using (var resultZipStream = new MemoryStream())
+            //{
+                using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
                 {
                     foreach (var retrieveTask in retrieveTasks)
                     {
@@ -78,8 +78,8 @@ namespace IDeliverable.ForceClient.Metadata
                     }
                 }
 
-                return resultZipStream.ToArray();
-            }
+            //    return resultZipStream.ToArray();
+            //}
         }
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

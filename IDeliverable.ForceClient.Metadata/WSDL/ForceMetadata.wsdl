@@ -1773,6 +1773,7 @@ Copyright 2006-2018 Salesforce.com, inc. All Rights Reserved
     <xsd:sequence>
      <xsd:element name="navigationMenuItem" minOccurs="0" maxOccurs="unbounded" type="tns:NavigationMenuItem"/>
     </xsd:sequence>
+   <xsd:attribute name="tmp" type="xsd:string"></xsd:attribute> <!-- Our dummy attribute. -->
    </xsd:complexType>
    <xsd:complexType name="NavigationMenuItem">
     <xsd:sequence>
@@ -1790,6 +1791,7 @@ Copyright 2006-2018 Salesforce.com, inc. All Rights Reserved
     <xsd:sequence>
      <xsd:element name="navigationMenuItem" minOccurs="0" maxOccurs="unbounded" type="tns:NavigationMenuItem"/>
     </xsd:sequence>
+   <xsd:attribute name="tmp" type="xsd:string"></xsd:attribute> <!-- Our dummy attribute. -->
    </xsd:complexType>
    <xsd:complexType name="CommunityTemplatePageSetting">
     <xsd:sequence>
@@ -5424,6 +5426,7 @@ Copyright 2006-2018 Salesforce.com, inc. All Rights Reserved
     <xsd:sequence>
      <xsd:element name="formItems" minOccurs="0" maxOccurs="unbounded" type="tns:FormItem"/>
     </xsd:sequence>
+   <xsd:attribute name="tmp" type="xsd:string"></xsd:attribute> <!-- Our dummy attribute. -->
    </xsd:complexType>
    <xsd:complexType name="FormItem">
     <xsd:sequence>
@@ -7908,6 +7911,7 @@ Copyright 2006-2018 Salesforce.com, inc. All Rights Reserved
     <xsd:sequence>
      <xsd:element name="quickActionLayoutItems" minOccurs="0" maxOccurs="unbounded" type="tns:QuickActionLayoutItem"/>
     </xsd:sequence>
+   <xsd:attribute name="tmp" type="xsd:string"></xsd:attribute> <!-- Our dummy attribute. -->
    </xsd:complexType>
    <xsd:complexType name="QuickActionLayoutItem">
     <xsd:sequence>
