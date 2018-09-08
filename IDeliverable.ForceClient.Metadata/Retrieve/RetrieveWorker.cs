@@ -49,37 +49,29 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
 
             await Task.WhenAll(retrieveTasks);
 
-            //if (retrieveTasks.Length == 1)
-            //    return retrieveTasks.First().Result.ZipFile;
-
-            //using (var resultZipStream = new MemoryStream())
-            //{
-                using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+            using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+            {
+                foreach (var retrieveTask in retrieveTasks)
                 {
-                    foreach (var retrieveTask in retrieveTasks)
+                    using (var retrieveZipStream = new MemoryStream(retrieveTask.Result.ZipFile))
                     {
-                        using (var retrieveZipStream = new MemoryStream(retrieveTask.Result.ZipFile))
+                        using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
                         {
-                            using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
+                            foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
                             {
-                                foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
-                                {
-                                    // A merged metadata ZIP file will not have any package manifests.
-                                    if (retrieveZipEntry.Name == "package.xml")
-                                        continue;
+                                // A merged metadata ZIP file will not have any package manifests.
+                                if (retrieveZipEntry.Name == "package.xml")
+                                    continue;
 
-                                    var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
+                                var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
 
-                                    using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
-                                        await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
-                                }
+                                using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
+                                    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
                             }
                         }
                     }
                 }
-
-            //    return resultZipStream.ToArray();
-            //}
+            }
         }
 
         protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

@@ -9,7 +9,9 @@ namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataPackage
     {
-        private static readonly XName sElementName = XName.Get("Package", Constants.MetadataXmlNamespace);
+        public const string MetadataXmlNamespace = "http://soap.sforce.com/2006/04/metadata";
+
+        private static readonly XName sElementName = XName.Get("Package", MetadataXmlNamespace);
 
         public static MetadataPackage FromFiles(string name, IEnumerable<MetadataFile> files)
         {
@@ -43,13 +45,13 @@ namespace IDeliverable.ForceClient.Metadata
                         sElementName,
                         new XElement
                         (
-                            XName.Get("types", Constants.MetadataXmlNamespace),
+                            XName.Get("types", MetadataXmlNamespace),
                             from customObject in CustomObjects
                             from customField in customObject.CustomFields
-                            select new XElement(XName.Get("members", Constants.MetadataXmlNamespace), $"{customObject.Name}.{customField.Name}"),
-                            new XElement(XName.Get("name", Constants.MetadataXmlNamespace), "CustomField")
+                            select new XElement(XName.Get("members", MetadataXmlNamespace), $"{customObject.Name}.{customField.Name}"),
+                            new XElement(XName.Get("name", MetadataXmlNamespace), "CustomField")
                         ),
-                        new XElement(XName.Get("version", Constants.MetadataXmlNamespace), "38.0") // TODO: Where to get the API version from when serializing a package manifest?
+                        new XElement(XName.Get("version", MetadataXmlNamespace), "38.0") // TODO: Where to get the API version from when serializing a package manifest?
                     ).ToByteArray()
                 );
 

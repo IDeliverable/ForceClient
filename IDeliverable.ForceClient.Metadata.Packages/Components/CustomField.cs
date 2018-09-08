@@ -29,14 +29,14 @@ namespace IDeliverable.ForceClient.Metadata.Components
 
         #region XML conversion
 
-        private static readonly XName sElementName = XName.Get("fields", Constants.MetadataXmlNamespace);
+        private static readonly XName sElementName = XName.Get("fields", MetadataPackage.MetadataXmlNamespace);
 
         public static CustomField FromXml(string objectName, XElement xml)
         {
             if (xml.Name != sElementName)
                 throw new ArgumentException($"The element '{xml.Name}' is not supported; expected '{sElementName}'.");
 
-            var nsm = xml.CreateNamespaceManager("m", Constants.MetadataXmlNamespace);
+            var nsm = xml.CreateNamespaceManager("m", MetadataPackage.MetadataXmlNamespace);
 
             var name = xml.XPathSelectElement("./m:fullName", nsm).Value;
             var label = xml.XPathSelectElement("./m:label", nsm).Value;
@@ -55,9 +55,9 @@ namespace IDeliverable.ForceClient.Metadata.Components
                 new XElement
                 (
                     sElementName,
-                    new XElement(XName.Get("fullName", Constants.MetadataXmlNamespace), mName),
-                    new XElement(XName.Get("label", Constants.MetadataXmlNamespace), mLabel),
-                    new XElement(XName.Get("type", Constants.MetadataXmlNamespace), mType),
+                    new XElement(XName.Get("fullName", MetadataPackage.MetadataXmlNamespace), mName),
+                    new XElement(XName.Get("label", MetadataPackage.MetadataXmlNamespace), mLabel),
+                    new XElement(XName.Get("type", MetadataPackage.MetadataXmlNamespace), mType),
                     mAdditionalElements
                 );
         }

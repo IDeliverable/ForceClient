@@ -10,14 +10,14 @@ namespace IDeliverable.ForceClient.Metadata.Components
 {
     public class CustomObject : IGrouping<CustomObject, CustomField>
     {
-        private static readonly XName sElementName = XName.Get("CustomObject", Constants.MetadataXmlNamespace);
+        private static readonly XName sElementName = XName.Get("CustomObject", MetadataPackage.MetadataXmlNamespace);
 
         public static CustomObject FromXml(string name, XElement xml)
         {
             if (xml.Name != sElementName)
                 throw new ArgumentException($"The element '{xml.Name}' is not supported; expected '{sElementName}'.");
 
-            var nsm = xml.CreateNamespaceManager("m", Constants.MetadataXmlNamespace);
+            var nsm = xml.CreateNamespaceManager("m", MetadataPackage.MetadataXmlNamespace);
 
             var fieldQuery =
                 from fieldElement in xml.XPathSelectElements("./m:fields", nsm)

@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="IDeliverable.Utils.Core" Version="1.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj" />
   </ItemGroup>
 
