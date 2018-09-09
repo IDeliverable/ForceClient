@@ -7,7 +7,8 @@ using AutoMapper;
 using IDeliverable.ForceClient.Metadata.Deploy;
 using IDeliverable.ForceClient.Metadata.ForceMetadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
-using IDeliverable.Utils.Core.CollectionExtensions;
+using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace IDeliverable.ForceClient.Metadata
 {
@@ -17,7 +18,7 @@ namespace IDeliverable.ForceClient.Metadata
         public const int MaxListMetadataQueriesPerRequest = 3;
         public const int MaxRetrieveMetadataItemsPerRequest = 10000;
 
-        public MetadataGateway(string url, string accessToken)
+        public MetadataGateway(string url, string accessToken, ILogger<MetadataGateway> logger)
         {
             mUrl = new Uri(url.Replace("{version}", MetadataApiVersion.ToString()));
             mAccessToken = accessToken;
@@ -25,6 +26,8 @@ namespace IDeliverable.ForceClient.Metadata
             mClient.Endpoint.Address = new EndpointAddress(mUrl);
             mSessionHeader = new SessionHeader() { sessionId = mAccessToken };
             mMapper = new MapperConfiguration(cfg => { }).CreateMapper();
+            mLogger = logger;
+            mRetryPolicy = Policy.Handle<TimeoutException>().WaitAndRetryAsync(3, x => TimeSpan.FromSeconds(3));
         }
 
         private readonly Uri mUrl;
@@ -32,6 +35,13 @@ namespace IDeliverable.ForceClient.Metadata
         private readonly MetadataPortTypeClient mClient;
         private readonly SessionHeader mSessionHeader;
         private readonly IMapper mMapper;
+        private readonly ILogger mLogger;
+        private readonly Policy mRetryPolicy;
+
+        public IEnumerable<MetadataType> GetAllMetadataTypes()
+        {
+            return Enum.GetValues(typeof(MetadataType)).Cast<MetadataType>().ToArray();
+        }
 
         public async Task<IEnumerable<MetadataItemReference>> ListItemsAsync(IEnumerable<MetadataType> types)
         {
@@ -45,7 +55,7 @@ namespace IDeliverable.ForceClient.Metadata
                     // to list each folder type. Once we know the full folder names we can ask the API to
                     // list the items in each folder.
                     var folderQuery = new ListMetadataQuery() { type = $"{metadataType}Folder" };
-                    var folderResponse = await mClient.listMetadataAsync(mSessionHeader, null, new[] { folderQuery }, MetadataApiVersion);
+                    var folderResponse = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(mSessionHeader, null, new[] { folderQuery }, MetadataApiVersion));
                     foreach (var fileProperties in folderResponse.result)
                         itemQueries.Add(new ListMetadataQuery() { type = metadataType.ToString(), folder = fileProperties.fullName });
                 }
@@ -53,28 +63,43 @@ namespace IDeliverable.ForceClient.Metadata
                     itemQueries.Add(new ListMetadataQuery() { type = metadataType.ToString() });
             }
 
-            var listMetadataTasks =
-                itemQueries
-                    .Partition(MaxListMetadataQueriesPerRequest)
-                    .Select(async (itemQueryRange) =>
-                    {
-                        var response = await mClient.listMetadataAsync(mSessionHeader, null, itemQueryRange.ToArray(), MetadataApiVersion);
-                        if (response.result == null)
-                            return new MetadataItemReference[] { }; // Result can sometimes be null for empty folders.
-                        var itemsQuery =
-                            from fileProperties in response.result
-                            select new MetadataItemReference((MetadataType)Enum.Parse(typeof(MetadataType), fileProperties.type), fileProperties.fullName);
-                        return itemsQuery.ToArray();
-                    });
+            var result = new List<MetadataItemReference>();
 
-            await Task.WhenAll(listMetadataTasks);
+            foreach (var itemQuery in itemQueries)
+            {
+                listMetadataResponse response = null;
 
-            var resultQuery =
-                from listMetadataTask in listMetadataTasks
-                from item in listMetadataTask.Result
-                select item;
+                try
+                {
+                    response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(mSessionHeader, null, new[] { itemQuery }, MetadataApiVersion));
+                }
+                catch (FaultException ex) when (ex.Code.Name == "INVALID_TYPE")
+                {
+                    mLogger.LogWarning(ex.Message);
+                }
+                catch (Exception ex)
+                {
+                    mLogger.LogError(ex, $"Error while listing metadata items of type {itemQuery.type}.");
+                }
 
-            return resultQuery.ToArray();
+                if (response?.result != null) // Result can sometimes be null for empty folders.
+                {
+                    var itemReferenceQuery =
+                        from fileProperties in response.result
+                        where !String.IsNullOrEmpty(fileProperties.type)
+                        select new MetadataItemReference((MetadataType)Enum.Parse(typeof(MetadataType), fileProperties.type), fileProperties.fullName);
+                    var itemReferenceList = itemReferenceQuery.ToArray();
+
+                    result.AddRange(itemReferenceList);
+
+                    if (!String.IsNullOrEmpty(itemQuery.folder))
+                        mLogger.LogInformation($"Found {itemReferenceList.Length} items of type {itemQuery.type} in folder {itemQuery.folder}.");
+                    else
+                        mLogger.LogInformation($"Found {itemReferenceList.Length} items of type {itemQuery.type}.");
+                }
+            }
+
+            return result.ToArray();
         }
 
         public async Task<string> StartRetrieveAsync(IEnumerable<MetadataItemReference> items)
@@ -90,14 +115,14 @@ namespace IDeliverable.ForceClient.Metadata
             var package = new Package() { types = typeMembersQuery.ToArray() };
             var request = new RetrieveRequest() { unpackaged = package };
 
-            var response = await mClient.retrieveAsync(mSessionHeader, null, request);
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.retrieveAsync(mSessionHeader, null, request));
 
             return response.result.id;
         }
 
         public async Task<Retrieve.RetrieveResult> GetRetrieveResultAsync(string operationId)
         {
-            var response = await mClient.checkRetrieveStatusAsync(mSessionHeader, null, operationId, includeZip: true);
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkRetrieveStatusAsync(mSessionHeader, null, operationId, includeZip: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.RetrieveStatus.Failed)
@@ -112,14 +137,14 @@ namespace IDeliverable.ForceClient.Metadata
         {
             // TODO: Expose DeployOptions to API clients.
             var options = new DeployOptions() { checkOnly = false, rollbackOnError = true };
-            var response = await mClient.deployAsync(mSessionHeader, null, null, zipFile, options);
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.deployAsync(mSessionHeader, null, null, zipFile, options));
 
             return response.result.id;
         }
 
         public async Task<Deploy.DeployResult> GetDeployResultAsync(string operationId)
         {
-            var response = await mClient.checkDeployStatusAsync(mSessionHeader, null, operationId, includeDetails: true);
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkDeployStatusAsync(mSessionHeader, null, operationId, includeDetails: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.DeployStatus.Canceled)

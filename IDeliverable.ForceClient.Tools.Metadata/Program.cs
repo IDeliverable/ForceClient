@@ -1,9 +1,11 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IdentityModel.OidcClient;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -13,32 +15,50 @@ namespace IDeliverable.ForceClient.Tools.Metadata
     {
         static async Task Main(string[] args)
         {
-            var options = new OidcClientOptions
+            var loggerFactory = new LoggerFactory();
+            loggerFactory.AddConsole(LogLevel.Information, includeScopes: true);
+            var logger = loggerFactory.CreateLogger<Program>();
+
+            try
             {
-                Authority = Constants.AuthorizationEndpointUrlProduction,
-                ClientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE",
-                ClientSecret = "2763444084747273086",
-                RedirectUri = "http://localhost:7890/",
-                Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
-                ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
-                Browser = new SystemBrowser(port: 7890)
-            };
+                logger.LogInformation("Acquiring access token...");
 
-            var client = new OidcClient(options);
-            var request = new LoginRequest();
-            var result = await client.LoginAsync(request);
+                var options = new OidcClientOptions
+                {
+                    Authority = Constants.AuthorizationEndpointUrlProduction,
+                    ClientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE",
+                    ClientSecret = "2763444084747273086",
+                    RedirectUri = "http://localhost:7890/",
+                    Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
+                    ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
+                    Browser = new SystemBrowser(port: 7890)
+                };
 
-            var accessToken = result.AccessToken;
-            var urlsJson = result.User.FindFirst("urls").Value;
-            var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
-            var metadataUrl = urls["metadata"].ToString();
+                var client = new OidcClient(options);
+                var request = new LoginRequest();
+                var result = await client.LoginAsync(request);
 
-            var metadataGateway = new MetadataGateway(metadataUrl, accessToken);
-            var retrieveWorker = new RetrieveWorker(metadataGateway);
+                var accessToken = result.AccessToken;
+                var urlsJson = result.User.FindFirst("urls").Value;
+                var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
+                var metadataUrl = urls["metadata"].ToString();
 
-            using (var fileStream = File.Create(@"C:\Temp\Metadata.zip"))
+                logger.LogInformation("Listing metadata items...");
+
+                var metadataGatewayLogger = loggerFactory.CreateLogger<MetadataGateway>();
+                var metadataGateway = new MetadataGateway(metadataUrl, accessToken, metadataGatewayLogger);
+                var metadataTypes = metadataGateway.GetAllMetadataTypes();
+                var itemReferences = await metadataGateway.ListItemsAsync(metadataTypes);
+
+                logger.LogInformation("Retrieving metadata...");
+
+                var retrieveWorkerLogger = loggerFactory.CreateLogger<RetrieveWorker>();
+                var retrieveWorker = new RetrieveWorker(metadataGateway, retrieveWorkerLogger);
+                await retrieveWorker.RetrieveAsync(itemReferences, $"C:\\Temp\\Metadata-{Guid.NewGuid()}");
+            }
+            catch (Exception ex)
             {
-                await retrieveWorker.RetrieveAllAsync(new[] { MetadataType.CustomObject }, fileStream);
+                logger.LogError(ex, "Error while retrieving metadata.");
             }
         }
     }

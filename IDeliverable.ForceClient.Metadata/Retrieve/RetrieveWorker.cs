@@ -1,32 +1,46 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using IDeliverable.Utils.Core.CollectionExtensions;
-using IDeliverable.Utils.Core.EventExtensions;
+using Microsoft.Extensions.Logging;
 
 namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
-    public class RetrieveWorker : INotifyPropertyChanged
+    public class RetrieveWorker
     {
-        public RetrieveWorker(MetadataGateway gateway)
+        public RetrieveWorker(MetadataGateway gateway, ILogger<RetrieveWorker> logger)
         {
             mGateway = gateway;
+            mLogger = logger;
         }
 
-        private MetadataGateway mGateway;
+        private readonly MetadataGateway mGateway;
+        private readonly ILogger mLogger;
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        public async Task RetrieveAllAsync(IEnumerable<MetadataType> types, Stream outputStream)
+        public async Task RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, string outputDirectoryPath)
         {
-            var retrieveItemReferences = await mGateway.ListItemsAsync(types);
+            Directory.CreateDirectory(outputDirectoryPath);
 
-            if (!retrieveItemReferences.Any())
+            async Task entryProcessorAsync(ZipArchiveEntry entry)
+            {
+                var fullPath = Path.Combine(outputDirectoryPath, entry.FullName);
+
+                var directoryPath = Path.GetDirectoryName(fullPath);
+                Directory.CreateDirectory(directoryPath);
+
+                using (Stream fileStream = File.Create(fullPath), entryStream = entry.Open())
+                    await entryStream.CopyToAsync(fileStream);
+            }
+
+            await RetrieveAsync(itemReferences, entryProcessorAsync);
+        }
+
+        public async Task RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+        {
+            if (!itemReferences.Any())
                 return;
 
             // This method support retrieving more metadata items than what the Metadata API
@@ -34,49 +48,59 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             // querying the API once per chunk, and then merging the resulting ZIP files into
             // one before returning.
 
-            var retrieveTasks =
-                retrieveItemReferences
-                    .Partition(MetadataGateway.MaxRetrieveMetadataItemsPerRequest)
-                    .Select(async (retrieveItemReferenceRange) =>
-                    {
-                        var operationId = await mGateway.StartRetrieveAsync(retrieveItemReferenceRange);
-                        RetrieveResult result = null;
-                        while (!(result = await mGateway.GetRetrieveResultAsync(operationId)).IsDone)
-                            await Task.Delay(TimeSpan.FromSeconds(3));
-                        return result;
-                    })
-                    .ToArray();
+            var itemReferencePartitions = itemReferences.Partition(MetadataGateway.MaxRetrieveMetadataItemsPerRequest / 4);
 
-            await Task.WhenAll(retrieveTasks);
+            var numItemsTotal = itemReferences.Count();
+            var numItemsRetrieved = 0;
 
-            using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+            mLogger.LogInformation($"Retrieving {itemReferences.Count()} items in {itemReferencePartitions.Count()} batches...");
+
+            //using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+            //{
+            foreach (var itemReferencePartition in itemReferencePartitions)
             {
-                foreach (var retrieveTask in retrieveTasks)
+                RetrieveResult result = null;
+
+                try
                 {
-                    using (var retrieveZipStream = new MemoryStream(retrieveTask.Result.ZipFile))
+                    var operationId = await mGateway.StartRetrieveAsync(itemReferencePartition);
+
+                    while (!(result = await mGateway.GetRetrieveResultAsync(operationId)).IsDone)
+                        await Task.Delay(TimeSpan.FromSeconds(3));
+                }
+                catch (Exception ex)
+                {
+                    mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
+                    continue;
+                }
+
+                using (var retrieveZipStream = new MemoryStream(result.ZipFile))
+                {
+                    using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
                     {
-                        using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
+                        foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
                         {
-                            foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
-                            {
-                                // A merged metadata ZIP file will not have any package manifests.
-                                if (retrieveZipEntry.Name == "package.xml")
-                                    continue;
+                            // A merged metadata ZIP file will not have any package manifests.
+                            if (retrieveZipEntry.Name == "package.xml")
+                                continue;
 
-                                var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
+                            await entryProcessorAsync(retrieveZipEntry);
 
-                                using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
-                                    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
-                            }
+                            //var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
+
+                            //using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
+                            //    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
                         }
                     }
                 }
-            }
-        }
 
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.SafeRaise(ExceptionHandlingMode.Swallow, null, this, new PropertyChangedEventArgs(propertyName));
+                numItemsRetrieved += itemReferencePartition.Count();
+
+                mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
+            }
+            //}
+
+            mLogger.LogInformation("All items successfully retrieved.");
         }
     }
 }
