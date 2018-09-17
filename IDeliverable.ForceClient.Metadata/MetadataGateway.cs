@@ -16,7 +16,7 @@ namespace IDeliverable.ForceClient.Metadata
     {
         public const int MetadataApiVersion = 43;
         public const int MaxListMetadataQueriesPerRequest = 3;
-        public const int MaxRetrieveMetadataItemsPerRequest = 10000;
+        public const int MaxRetrieveMetadataItemsPerRequest = 200;
 
         public MetadataGateway(string url, string accessToken, ILogger<MetadataGateway> logger)
         {

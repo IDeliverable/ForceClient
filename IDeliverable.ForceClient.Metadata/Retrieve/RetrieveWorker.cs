@@ -20,7 +20,7 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
         private readonly MetadataGateway mGateway;
         private readonly ILogger mLogger;
 
-        public async Task RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, string outputDirectoryPath)
+        public async Task<IReadOnlyDictionary<MetadataItemReference, bool>> RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, string outputDirectoryPath)
         {
             Directory.CreateDirectory(outputDirectoryPath);
 
@@ -35,20 +35,22 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
                     await entryStream.CopyToAsync(fileStream);
             }
 
-            await RetrieveAsync(itemReferences, entryProcessorAsync);
+            return await RetrieveAsync(itemReferences, entryProcessorAsync);
         }
 
-        public async Task RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+        public async Task<IReadOnlyDictionary<MetadataItemReference, bool>> RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
         {
+            var result = new Dictionary<MetadataItemReference, bool>();
+
             if (!itemReferences.Any())
-                return;
+                return result;
 
             // This method support retrieving more metadata items than what the Metadata API
             // supports in one operation, by partitioning the list of items into chunks,
             // querying the API once per chunk, and then merging the resulting ZIP files into
             // one before returning.
 
-            var itemReferencePartitions = itemReferences.Partition(MetadataGateway.MaxRetrieveMetadataItemsPerRequest / 4);
+            var itemReferencePartitions = itemReferences.Partition(MetadataGateway.MaxRetrieveMetadataItemsPerRequest);
 
             var numItemsTotal = itemReferences.Count();
             var numItemsRetrieved = 0;
@@ -59,22 +61,25 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             //{
             foreach (var itemReferencePartition in itemReferencePartitions)
             {
-                RetrieveResult result = null;
+                RetrieveResult retrieveResult = null;
 
                 try
                 {
                     var operationId = await mGateway.StartRetrieveAsync(itemReferencePartition);
 
-                    while (!(result = await mGateway.GetRetrieveResultAsync(operationId)).IsDone)
+                    while (!(retrieveResult = await mGateway.GetRetrieveResultAsync(operationId)).IsDone)
                         await Task.Delay(TimeSpan.FromSeconds(3));
                 }
                 catch (Exception ex)
                 {
                     mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
+                    numItemsRetrieved += itemReferencePartition.Count();
+                    foreach (var itemReference in itemReferencePartition)
+                        result.Add(itemReference, false);
                     continue;
                 }
 
-                using (var retrieveZipStream = new MemoryStream(result.ZipFile))
+                using (var retrieveZipStream = new MemoryStream(retrieveResult.ZipFile))
                 {
                     using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
                     {
@@ -95,12 +100,16 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
                 }
 
                 numItemsRetrieved += itemReferencePartition.Count();
+                foreach (var itemReference in itemReferencePartition)
+                    result.Add(itemReference, true);
 
                 mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
             }
             //}
 
             mLogger.LogInformation("All items successfully retrieved.");
+
+            return result;
         }
     }
 }

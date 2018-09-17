@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
@@ -36,10 +37,10 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
                 var client = new OidcClient(options);
                 var request = new LoginRequest();
-                var result = await client.LoginAsync(request);
+                var loginResult = await client.LoginAsync(request);
 
-                var accessToken = result.AccessToken;
-                var urlsJson = result.User.FindFirst("urls").Value;
+                var accessToken = loginResult.AccessToken;
+                var urlsJson = loginResult.User.FindFirst("urls").Value;
                 var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
                 var metadataUrl = urls["metadata"].ToString();
 
@@ -54,7 +55,14 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
                 var retrieveWorkerLogger = loggerFactory.CreateLogger<RetrieveWorker>();
                 var retrieveWorker = new RetrieveWorker(metadataGateway, retrieveWorkerLogger);
-                await retrieveWorker.RetrieveAsync(itemReferences, $"C:\\Temp\\Metadata-{Guid.NewGuid()}");
+                var result = await retrieveWorker.RetrieveAsync(itemReferences, $"C:\\Temp\\Metadata-{Guid.NewGuid()}");
+                var missingQuery =
+                    from resultItem in result
+                    where resultItem.Value == false
+                    orderby resultItem.Key.Type, resultItem.Key.FullName
+                    select resultItem.Key;
+                foreach (var itemReference in missingQuery)
+                    logger.LogWarning($"MISSING: {itemReference.Type} {itemReference.FullName}");
             }
             catch (Exception ex)
             {
