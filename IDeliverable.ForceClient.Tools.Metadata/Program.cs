@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
+using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IdentityModel.OidcClient;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
         static async Task Main(string[] args)
         {
             var loggerFactory = new LoggerFactory();
-            loggerFactory.AddConsole(LogLevel.Information, includeScopes: true);
+            loggerFactory.AddConsole(LogLevel.Debug, includeScopes: true);
             var logger = loggerFactory.CreateLogger<Program>();
 
             try
@@ -44,25 +45,29 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
                 var metadataUrl = urls["metadata"].ToString();
 
+                var metadataRules = new MetadataRules();
+                var metadataGatewayLogger = loggerFactory.CreateLogger<SoapMetadataClient>();
+                var metadataGateway = new SoapMetadataClient(metadataUrl, accessToken, metadataRules, metadataGatewayLogger);
+                var retrieveWorkerLogger = loggerFactory.CreateLogger<RetrieveWorker>();
+                var retrieveWorker = new RetrieveWorker(metadataGateway, metadataRules, retrieveWorkerLogger);
+
                 logger.LogInformation("Listing metadata items...");
 
-                var metadataGatewayLogger = loggerFactory.CreateLogger<MetadataGateway>();
-                var metadataGateway = new MetadataGateway(metadataUrl, accessToken, metadataGatewayLogger);
-                var metadataTypes = metadataGateway.GetAllMetadataTypes();
-                var itemReferences = await metadataGateway.ListItemsAsync(metadataTypes);
+                var metadataTypes = metadataRules.GetSupportedTypes();
+                var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypes);
 
-                logger.LogInformation("Retrieving metadata...");
+                logger.LogInformation($"{itemInfoList.Count()} items found.");
 
-                var retrieveWorkerLogger = loggerFactory.CreateLogger<RetrieveWorker>();
-                var retrieveWorker = new RetrieveWorker(metadataGateway, retrieveWorkerLogger);
-                var result = await retrieveWorker.RetrieveAsync(itemReferences, $"C:\\Temp\\Metadata-{Guid.NewGuid()}");
-                var missingQuery =
-                    from resultItem in result
-                    where resultItem.Value == false
-                    orderby resultItem.Key.Type, resultItem.Key.FullName
-                    select resultItem.Key;
-                foreach (var itemReference in missingQuery)
-                    logger.LogWarning($"MISSING: {itemReference.Type} {itemReference.FullName}");
+                //logger.LogInformation("Retrieving metadata...");
+
+                //var result = await retrieveWorker.RetrieveAsync(itemReferences, $"C:\\Temp\\Metadata-{Guid.NewGuid()}");
+                //var missingQuery =
+                //    from resultItem in result
+                //    where resultItem.Value == false
+                //    orderby resultItem.Key.Type, resultItem.Key.FullName
+                //    select resultItem.Key;
+                //foreach (var itemReference in missingQuery)
+                //    logger.LogWarning($"MISSING: {itemReference.Type} {itemReference.FullName}");
             }
             catch (Exception ex)
             {

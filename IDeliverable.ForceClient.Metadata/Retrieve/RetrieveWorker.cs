@@ -4,6 +4,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
+using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using Microsoft.Extensions.Logging;
 
@@ -11,16 +13,96 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
     public class RetrieveWorker
     {
-        public RetrieveWorker(MetadataGateway gateway, ILogger<RetrieveWorker> logger)
+        public RetrieveWorker(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveWorker> logger)
         {
-            mGateway = gateway;
+            mClient = client;
+            mMetadataRules = metadataRules;
             mLogger = logger;
         }
 
-        private readonly MetadataGateway mGateway;
+        private readonly IMetadataClient mClient;
+        private readonly MetadataRules mMetadataRules;
         private readonly ILogger mLogger;
 
-        public async Task<IReadOnlyDictionary<MetadataItemReference, bool>> RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, string outputDirectoryPath)
+        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataType> types)
+        {
+            var result = new List<MetadataItemInfo>();
+
+            var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
+            var parallelismOptions = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = mMetadataRules.MaxConcurrentListMetadataRequests };
+
+            var source = new BroadcastBlock<MetadataType>(type => type);
+            var batchFolderTypes = new BatchBlock<MetadataType>(mMetadataRules.MaxListMetadataQueriesPerRequest);
+            var listFolders = new TransformManyBlock<MetadataType[], MetadataFolderInfo>(
+                async typeList =>
+                {
+                    mLogger.LogDebug($"Listing folders for types {String.Join(", ", typeList)}...");
+
+                    var folderInfoList = await mClient.ListFoldersAsync(typeList);
+                    mLogger.LogDebug($"Found {folderInfoList.Count()} folders for types {String.Join(", ", typeList)}.");
+
+                    return folderInfoList;
+                }, parallelismOptions);
+            var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
+            var createItemQueries = new TransformBlock<MetadataType, MetadataListQuery>(type => new MetadataListQuery(type));
+            var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
+            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(
+                async queryList =>
+                {
+                    var queryStrings =
+                        queryList
+                            .Select(query => $"{query.Type}/{query.InFolder}")
+                            .ToArray();
+
+                    mLogger.LogDebug($"Listing items for types {String.Join(", ", queryStrings)}...");
+
+                    IEnumerable<MetadataItemInfo> itemInfoList = new MetadataItemInfo[] { };
+
+                    try
+                    {
+                        itemInfoList = await mClient.ListItemsAsync(queryList);
+                        mLogger.LogDebug($"Found {itemInfoList.Count()} items for types {String.Join(", ", queryStrings)}.");
+                    }
+                    // TODO: The string below leaks the SOAP implementation.
+                    catch (MetadataException ex) when (ex.ApiErrorCode == "INVALID_TYPE")
+                    {
+                        mLogger.LogWarning(ex.Message);
+                    }
+
+                    return itemInfoList;
+                }, parallelismOptions);
+            var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
+
+            source.LinkTo(batchFolderTypes, linkOptions, type => mMetadataRules.GetIsFolderized(type));
+            source.LinkTo(createItemQueries, linkOptions, type => !mMetadataRules.GetIsFolderized(type));
+            batchFolderTypes.LinkTo(listFolders, linkOptions);
+            listFolders.LinkTo(createFolderItemQueries, linkOptions);
+            createFolderItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
+            createItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
+            batchItemQueries.LinkTo(listItems, linkOptions);
+            listItems.LinkTo(target, linkOptions);
+
+            // Whenever *both* item creation blocks are completed, only then can we signal
+            // the completion of the target to which they are both linked. Perhaps there is
+            // a more elegant way to specify in the linking that the target should complete
+            // only when both sources are completed.
+            _ = Task.WhenAll(createFolderItemQueries.Completion, createItemQueries.Completion).ContinueWith(_ => batchItemQueries.Complete());
+
+            foreach (var type in types)
+                source.Post(type);
+            source.Complete();
+
+            await target.Completion;
+
+            return result;
+        }
+
+        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries)
+        {
+            return await mClient.ListItemsAsync(queries);
+        }
+
+        public async Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, string outputDirectoryPath)
         {
             Directory.CreateDirectory(outputDirectoryPath);
 
@@ -38,9 +120,9 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             return await RetrieveAsync(itemReferences, entryProcessorAsync);
         }
 
-        public async Task<IReadOnlyDictionary<MetadataItemReference, bool>> RetrieveAsync(IEnumerable<MetadataItemReference> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+        public async Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
         {
-            var result = new Dictionary<MetadataItemReference, bool>();
+            var result = new Dictionary<MetadataItemInfo, bool>();
 
             if (!itemReferences.Any())
                 return result;
@@ -50,7 +132,7 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             // querying the API once per chunk, and then merging the resulting ZIP files into
             // one before returning.
 
-            var itemReferencePartitions = itemReferences.Partition(MetadataGateway.MaxRetrieveMetadataItemsPerRequest);
+            var itemReferencePartitions = itemReferences.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
 
             var numItemsTotal = itemReferences.Count();
             var numItemsRetrieved = 0;
@@ -65,9 +147,9 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
 
                 try
                 {
-                    var operationId = await mGateway.StartRetrieveAsync(itemReferencePartition);
+                    var operationId = await mClient.StartRetrieveAsync(itemReferencePartition);
 
-                    while (!(retrieveResult = await mGateway.GetRetrieveResultAsync(operationId)).IsDone)
+                    while (!(retrieveResult = await mClient.GetRetrieveResultAsync(operationId)).IsDone)
                         await Task.Delay(TimeSpan.FromSeconds(3));
                 }
                 catch (Exception ex)

@@ -2,14 +2,16 @@ using System;
 
 namespace IDeliverable.ForceClient.Metadata.Deploy
 {
-    public class DeployCanceledException : Exception
+    public class DeployException : Exception
     {
-        public DeployCanceledException(string canceledByName)
-            : base($"The deployment operation was canceled by user '{canceledByName}'.")
+        public DeployException(string apiErrorMessage, string apiErrorCode)
+            : base($"An error occurred during metadata deployment. API error message: '{apiErrorMessage}'. API error code: {apiErrorCode}")
         {
-            CanceledByName = canceledByName;
+            ApiErrorMessage = apiErrorMessage;
+            ApiErrorCode = apiErrorCode;
         }
 
-        public string CanceledByName { get; }
+        public string ApiErrorMessage { get; }
+        public string ApiErrorCode { get; }
     }
 }

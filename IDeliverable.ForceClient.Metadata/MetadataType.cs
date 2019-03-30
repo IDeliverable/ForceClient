@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace IDeliverable.ForceClient.Metadata
 {
     public enum MetadataType
@@ -149,14 +147,5 @@ namespace IDeliverable.ForceClient.Metadata
         WaveTemplateBundle,
         WaveXmd,
         Workflow
-    }
-
-    public static class MetadataTypeExtensions
-    {
-        public static bool GetIsInFolders(this MetadataType metadataType)
-        {
-            var metadataTypesInFolders = new[] { MetadataType.Dashboard, MetadataType.Document, /*MetadataType.EmailTemplate,*/ MetadataType.Report };
-            return metadataTypesInFolders.Contains(metadataType);
-        }
     }
 }

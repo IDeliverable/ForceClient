@@ -1,22 +1,18 @@
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using IDeliverable.Utils.Core.EventExtensions;
+using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Deploy
 {
-    public class DeployWorker : INotifyPropertyChanged
+    public class DeployWorker
     {
-        public DeployWorker(MetadataGateway gateway)
+        public DeployWorker(IMetadataClient gateway)
         {
             mGateway = gateway;
         }
 
-        private MetadataGateway mGateway;
-
-        public event PropertyChangedEventHandler PropertyChanged;
+        private readonly IMetadataClient mGateway;
 
         public async Task<DeployResult> DeployAsync(byte[] zipFile)
         {
@@ -30,11 +26,6 @@ namespace IDeliverable.ForceClient.Metadata.Deploy
             }
 
             return result;
-        }
-
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.SafeRaise(ExceptionHandlingMode.Swallow, null, this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

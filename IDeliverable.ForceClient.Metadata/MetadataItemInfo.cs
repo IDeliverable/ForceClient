@@ -1,8 +1,8 @@
-﻿namespace IDeliverable.ForceClient.Metadata
+namespace IDeliverable.ForceClient.Metadata
 {
-    public class MetadataItemReference
+    public class MetadataItemInfo
     {
-        public MetadataItemReference(MetadataType type, string fullName)
+        public MetadataItemInfo(MetadataType type, string fullName)
         {
             Type = type;
             FullName = fullName;
