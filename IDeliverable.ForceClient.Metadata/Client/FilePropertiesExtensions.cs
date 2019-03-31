@@ -7,7 +7,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
     {
         public static bool IsInPackage(this FileProperties fileProperties)
         {
-            return fileProperties.manageableState != ManageableState.unmanaged;
+            return fileProperties.manageableState != ManageableState.unmanaged || !String.IsNullOrEmpty(fileProperties.namespacePrefix);
         }
 
         public static MetadataItemInfo AsMetadataItemInfo(this FileProperties fileProperties)

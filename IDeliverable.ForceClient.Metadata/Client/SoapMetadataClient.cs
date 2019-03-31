@@ -105,6 +105,11 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
                 return itemInfoList;
             }
+            catch (FaultException ex) when (ex.Code.Name == "INVALID_TYPE")
+            {
+                mLogger.LogWarning(ex.Message);
+                return Enumerable.Empty<MetadataItemInfo>();
+            }
             catch (Exception ex)
             {
                 mLogger.LogError(ex, "Error while listing metadata items.");

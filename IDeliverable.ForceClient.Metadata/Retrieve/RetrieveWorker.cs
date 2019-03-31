@@ -33,44 +33,11 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
 
             var source = new BroadcastBlock<MetadataType>(type => type);
             var batchFolderTypes = new BatchBlock<MetadataType>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listFolders = new TransformManyBlock<MetadataType[], MetadataFolderInfo>(
-                async typeList =>
-                {
-                    mLogger.LogDebug($"Listing folders for types {String.Join(", ", typeList)}...");
-
-                    var folderInfoList = await mClient.ListFoldersAsync(typeList);
-                    mLogger.LogDebug($"Found {folderInfoList.Count()} folders for types {String.Join(", ", typeList)}.");
-
-                    return folderInfoList;
-                }, parallelismOptions);
+            var listFolders = new TransformManyBlock<MetadataType[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
             var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
             var createItemQueries = new TransformBlock<MetadataType, MetadataListQuery>(type => new MetadataListQuery(type));
             var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(
-                async queryList =>
-                {
-                    var queryStrings =
-                        queryList
-                            .Select(query => $"{query.Type}/{query.InFolder}")
-                            .ToArray();
-
-                    mLogger.LogDebug($"Listing items for types {String.Join(", ", queryStrings)}...");
-
-                    IEnumerable<MetadataItemInfo> itemInfoList = new MetadataItemInfo[] { };
-
-                    try
-                    {
-                        itemInfoList = await mClient.ListItemsAsync(queryList);
-                        mLogger.LogDebug($"Found {itemInfoList.Count()} items for types {String.Join(", ", queryStrings)}.");
-                    }
-                    // TODO: The string below leaks the SOAP implementation.
-                    catch (MetadataException ex) when (ex.ApiErrorCode == "INVALID_TYPE")
-                    {
-                        mLogger.LogWarning(ex.Message);
-                    }
-
-                    return itemInfoList;
-                }, parallelismOptions);
+            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries), parallelismOptions);
             var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
 
             source.LinkTo(batchFolderTypes, linkOptions, type => mMetadataRules.GetIsFolderized(type));

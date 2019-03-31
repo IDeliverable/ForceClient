@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
@@ -6,6 +7,8 @@ using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IDeliverable.ForceClient.Tools.Metadata.Authentication;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
 using Serilog.Events;
 
@@ -18,7 +21,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             Log.Logger =
                 new LoggerConfiguration()
                     .MinimumLevel.Information()
-                    .MinimumLevel.Override("IDeliverable.ForceClient.Metadata.Client", LogEventLevel.Fatal)
+                    //.MinimumLevel.Override("IDeliverable.ForceClient.Metadata.Client", LogEventLevel.Fatal)
                     .WriteTo.Console()
                     .CreateLogger();
 
@@ -43,6 +46,12 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 var metadataTypes = metadataRules.GetSupportedTypes();
                 var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypes);
                 Console.WriteLine($"{itemInfoList.Count()} items found.");
+
+                var jsonSettings = new JsonSerializerSettings();
+                jsonSettings.Formatting = Formatting.Indented;
+                jsonSettings.Converters.Add(new StringEnumConverter());
+                var jsonText = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
+                await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", jsonText);
 
                 //logger.LogInformation("Retrieving metadata...");
 
