@@ -1,3 +1,4 @@
+using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Deploy

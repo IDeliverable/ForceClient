@@ -1,28 +1,53 @@
 using System;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
-using IDeliverable.ForceClient.Metadata.Client;
 using IdentityModel.OidcClient;
 using IdentityModel.OidcClient.Browser;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Nito.AsyncEx;
 
 namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 {
     public class BrowserOrgAccessProvider : IOrgAccessProvider
     {
-        public BrowserOrgAccessProvider()
+        public BrowserOrgAccessProvider(OrgType orgType, string clientId, string clientSecret, int redirectTcpPort = 7890)
         {
+            string authority;
+            switch (orgType)
+            {
+                case OrgType.Production:
+                    authority = Constants.AuthorizationEndpointUrlProduction;
+                    break;
+                case OrgType.Sandbox:
+                    authority = Constants.AuthorizationEndpointUrlSandbox;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(orgType), $"Unrecognized {nameof(OrgType)} value '{orgType}'.");
+            }
+
             mBrowser = new SystemBrowser(port: 7890);
             mLoginResultLazy = new AsyncLazy<LoginResult>(AuthenticateAsync);
+            mOptions = new OidcClientOptions()
+            {
+                Authority = authority,
+                ClientId = clientId,
+                // TODO: Figure out how to do this without a client secret!
+                ClientSecret = clientSecret,
+                RedirectUri = $"http://localhost:{redirectTcpPort}/",
+                Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
+                ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
+                Browser = mBrowser
+            };
         }
 
         private readonly IBrowser mBrowser;
         private readonly AsyncLazy<LoginResult> mLoginResultLazy;
+        private readonly OidcClientOptions mOptions;
 
         public async Task<string> GetSoapUrlAsync()
         {
-            var loginResult = await mLoginResultLazy.Value;
+            var loginResult = await mLoginResultLazy;
             var urlsJson = loginResult.User.FindFirst("urls").Value;
             var urls = JsonConvert.DeserializeObject(urlsJson) as JObject;
             var metadataUrl = urls["metadata"].ToString();
@@ -31,42 +56,17 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 
         public async Task<string> GetAccessTokenAsync()
         {
-            var loginResult = await mLoginResultLazy.Value;
+            var loginResult = await mLoginResultLazy;
             var accessToken = loginResult.AccessToken;
             return accessToken;
         }
 
         private async Task<LoginResult> AuthenticateAsync()
         {
-            var options = new OidcClientOptions()
-            {
-                Authority = Constants.AuthorizationEndpointUrlProduction,
-                ClientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE",
-                // TODO: Figure out how to do this without a client secret!
-                ClientSecret = "2763444084747273086",
-                RedirectUri = "http://localhost:7890/",
-                Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
-                ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
-                Browser = mBrowser
-            };
-
-            var client = new OidcClient(options);
+            var client = new OidcClient(mOptions);
             var request = new LoginRequest();
-
             var loginResult = await client.LoginAsync(request);
-
             return loginResult;
-        }
-
-        private class AsyncLazy<T> : Lazy<Task<T>>
-        {
-            public AsyncLazy(Func<T> valueFactory)
-                : base(() => Task.Factory.StartNew(valueFactory))
-            { }
-
-            public AsyncLazy(Func<Task<T>> taskFactory)
-                : base(() => Task.Factory.StartNew(() => taskFactory()).Unwrap())
-            { }
         }
     }
 }

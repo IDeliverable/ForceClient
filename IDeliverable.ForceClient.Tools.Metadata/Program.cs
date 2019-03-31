@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IDeliverable.ForceClient.Tools.Metadata.Authentication;
@@ -27,7 +28,11 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                     .AddMetadataServices()
                     .BuildServiceProvider();
 
-            var orgAccessProvider = new BrowserOrgAccessProvider();
+            // TODO: Figure out how to do this without a client secret!
+            var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE";
+            var clientSecret = "2763444084747273086";
+
+            var orgAccessProvider = new BrowserOrgAccessProvider(OrgType.Production, clientId, clientSecret);
             var retrieveWorkerFactory = services.GetRequiredService<IRetrieveWorkerFactory>();
             var metadataRules = services.GetRequiredService<MetadataRules>();
             var retrieveWorker = retrieveWorkerFactory.CreateRetrieveWorker(orgAccessProvider);

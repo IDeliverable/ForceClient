@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace IDeliverable.ForceClient.Metadata.Client
+namespace IDeliverable.ForceClient.Core
 {
     public interface IOrgAccessProvider
     {

@@ -4,6 +4,7 @@ using System.Linq;
 using System.ServiceModel;
 using System.Threading.Tasks;
 using AutoMapper;
+using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata.Deploy;
 using IDeliverable.ForceClient.Metadata.ForceMetadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;

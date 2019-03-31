@@ -1,4 +1,4 @@
-using IDeliverable.ForceClient.Metadata.Client;
+using IDeliverable.ForceClient.Core;
 
 namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
