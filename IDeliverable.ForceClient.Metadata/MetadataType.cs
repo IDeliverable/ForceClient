@@ -43,7 +43,7 @@ namespace IDeliverable.ForceClient.Metadata
         CustomPermission,
         CustomSite,
         CustomTab,
-        //CustomValue, // CRUD only
+        //CustomValue, // Supported in CRUD operations only.
         Dashboard,
         DataCategoryGroup,
         DelegateGroup,
@@ -70,10 +70,9 @@ namespace IDeliverable.ForceClient.Metadata
         Flow,
         FlowCategory,
         FlowDefinition,
-        //Folder,
         FolderShare,
         GlobalPicklist,
-        //GlobalPicklistValue, // CRUD only
+        //GlobalPicklistValue, // Supported in CRUD operations only.
         GlobalValueSet,
         GlobalValueSetTranslation,
         Group,
@@ -119,7 +118,7 @@ namespace IDeliverable.ForceClient.Metadata
         Settings,
         SharedTo,
         SharingBaseRule,
-        //SharingRules, // Prior to API version 33
+        //SharingRules, // No longer supported since API version 33.
         SharingCriteriaRule,
         SharingOwnerRule,
         SharingTerritoryRule,

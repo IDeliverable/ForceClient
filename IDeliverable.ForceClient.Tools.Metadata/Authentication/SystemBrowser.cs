@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
-namespace IDeliverable.ForceClient.Tools.Metadata
+namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 {
     public class SystemBrowser : IBrowser
     {
@@ -168,7 +168,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             {
                 ctx.Response.StatusCode = 200;
                 ctx.Response.ContentType = "text/html";
-                ctx.Response.WriteAsync("<h1>You can now return to the application.</h1>");
+                ctx.Response.WriteAsync("<h1>Authentication successful.</h1><p>You can now close this browser tab.</p>");
                 ctx.Response.Body.Flush();
 
                 _source.TrySetResult(value);

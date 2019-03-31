@@ -10,6 +10,7 @@ namespace IDeliverable.ForceClient.Metadata
 
         // Limits documented here:
         // https://developer.salesforce.com/docs/atlas.en-us.salesforce_app_limits_cheatsheet.meta/salesforce_app_limits_cheatsheet/salesforce_app_limits_platform_metadata.htm
+
         public readonly int MaxListMetadataQueriesPerRequest = 3;
         public readonly int MaxConcurrentListMetadataRequests = 5;
         public readonly int MaxConcurrentRetrieveMetadataRequests = 5;
@@ -23,7 +24,7 @@ namespace IDeliverable.ForceClient.Metadata
             {
                 MetadataType.Dashboard,
                 MetadataType.Document,
-                /*MetadataType.EmailTemplate,*/
+                //MetadataType.EmailTemplate,
                 MetadataType.Report
             };
 

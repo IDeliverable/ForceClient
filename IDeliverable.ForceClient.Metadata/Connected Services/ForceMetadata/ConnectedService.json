@@ -1,11 +1,11 @@
-﻿{
+{
   "ProviderId": "Microsoft.VisualStudio.ConnectedService.Wcf",
   "Version": "15.0.20628.921",
   "GettingStartedDocument": {
     "Uri": "https://go.microsoft.com/fwlink/?linkid=858517"
   },
   "ExtendedData": {
-    "Uri": "C:\\Data\\Git\\IDeliverable\\ForceClient\\IDeliverable.ForceClient.Metadata\\WSDL\\ForceMetadata.wsdl",
+    "Uri": "C:\\Data\\Git\\IDeliverable\\ForceClient\\IDeliverable.ForceClient.Metadata\\Client\\WSDL\\ForceMetadata.wsdl",
     "Namespace": "IDeliverable.ForceClient.Metadata.ForceMetadata",
     "SelectedAccessLevelForGeneratedClass": "Internal",
     "GenerateMessageContract": false,

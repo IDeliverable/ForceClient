@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
-    public class RetrieveWorker
+    public class RetrieveWorker : IRetrieveWorker
     {
         public RetrieveWorker(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveWorker> logger)
         {

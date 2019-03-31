@@ -5,21 +5,21 @@ using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Deploy
 {
-    public class DeployWorker
+    public class DeployWorker : IDeployWorker
     {
-        public DeployWorker(IMetadataClient gateway)
+        public DeployWorker(IMetadataClient client)
         {
-            mGateway = gateway;
+            mClient = client;
         }
 
-        private readonly IMetadataClient mGateway;
+        private readonly IMetadataClient mClient;
 
         public async Task<DeployResult> DeployAsync(byte[] zipFile)
         {
-            var operationId = await mGateway.StartDeployAsync(zipFile);
+            var operationId = await mClient.StartDeployAsync(zipFile);
 
             DeployResult result = null;
-            while (!(result = await mGateway.GetDeployResultAsync(operationId)).IsDone)
+            while (!(result = await mClient.GetDeployResultAsync(operationId)).IsDone)
             {
                 Debug.WriteLine($"Deploy status: {result.Status} ({result.State}).");
                 await Task.Delay(TimeSpan.FromSeconds(3));
