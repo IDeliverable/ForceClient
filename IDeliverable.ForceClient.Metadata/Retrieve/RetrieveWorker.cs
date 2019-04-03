@@ -69,7 +69,7 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             return await mClient.ListItemsAsync(queries);
         }
 
-        public async Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, string outputDirectoryPath)
+        public async Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, string outputDirectoryPath)
         {
             Directory.CreateDirectory(outputDirectoryPath);
 
@@ -87,9 +87,9 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             return await RetrieveAsync(itemReferences, entryProcessorAsync);
         }
 
-        public async Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+        public async Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
         {
-            var result = new Dictionary<MetadataItemInfo, bool>();
+            var result = new Dictionary<MetadataRetrieveSpec, bool>();
 
             if (!itemReferences.Any())
                 return result;

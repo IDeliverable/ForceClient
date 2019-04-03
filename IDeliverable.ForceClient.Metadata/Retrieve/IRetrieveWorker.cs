@@ -10,7 +10,7 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
 	{
 		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataType> types);
 		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries);
-		Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
-		Task<IReadOnlyDictionary<MetadataItemInfo, bool>> RetrieveAsync(IEnumerable<MetadataItemInfo> itemReferences, string outputDirectoryPath);
+		Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
+		Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, string outputDirectoryPath);
 	}
 }

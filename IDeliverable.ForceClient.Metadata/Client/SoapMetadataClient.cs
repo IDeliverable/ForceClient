@@ -119,7 +119,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             }
         }
 
-        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataItemInfo> items)
+        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveSpec> items)
         {
             if (items.Count() > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(items), $"The number of metadata items to retrieve ({items.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxRetrieveMetadataItemsPerRequest}).");
@@ -130,7 +130,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 select new PackageTypeMembers() { name = itemTypeGroup.Key.ToString(), members = itemTypeGroup.ToArray() };
 
             var package = new Package() { types = typeMembersQuery.ToArray() };
-            var request = new RetrieveRequest() { unpackaged = package };
+            var request = new RetrieveRequest() { unpackaged = package, singlePackage = true };
 
             await EnsureClientHasEndpointAddressAsync();
             var header = await GetAuthenticationHeaderAsync();
