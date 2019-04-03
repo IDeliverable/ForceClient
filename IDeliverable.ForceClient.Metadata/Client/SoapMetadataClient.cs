@@ -32,7 +32,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
         private readonly ILogger mLogger;
         private readonly MetadataPortTypeClient mClient;
         private readonly IMapper mMapper;
-        private readonly Policy mRetryPolicy;
+        private readonly IAsyncPolicy mRetryPolicy;
 
         public async Task<IEnumerable<MetadataFolderInfo>> ListFoldersAsync(IEnumerable<MetadataType> types)
         {
