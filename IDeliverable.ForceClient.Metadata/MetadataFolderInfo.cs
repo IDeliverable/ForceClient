@@ -2,13 +2,13 @@ namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataFolderInfo
     {
-        public MetadataFolderInfo(string name, MetadataType containsType)
+        public MetadataFolderInfo(string name, string containsType)
         {
             Name = name;
             ContainsType = containsType;
         }
 
         public string Name { get; }
-        public MetadataType ContainsType { get; }
+        public string ContainsType { get; }
     }
 }

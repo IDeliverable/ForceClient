@@ -13,4 +13,8 @@
     <ProjectReference Include="..\IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Storage\" />
+  </ItemGroup>
+
 </Project>

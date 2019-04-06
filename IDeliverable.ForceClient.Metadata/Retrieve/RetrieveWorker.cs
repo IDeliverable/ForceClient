@@ -24,24 +24,26 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
         private readonly MetadataRules mMetadataRules;
         private readonly ILogger mLogger;
 
-        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataType> types)
+        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<string> types)
         {
+            var metadataDescription = await mClient.DescribeAsync();
+
             var result = new List<MetadataItemInfo>();
 
             var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
             var parallelismOptions = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = mMetadataRules.MaxConcurrentListMetadataRequests };
 
-            var source = new BroadcastBlock<MetadataType>(type => type);
-            var batchFolderTypes = new BatchBlock<MetadataType>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listFolders = new TransformManyBlock<MetadataType[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
+            var source = new BroadcastBlock<string>(type => type);
+            var batchFolderTypes = new BatchBlock<string>(mMetadataRules.MaxListMetadataQueriesPerRequest);
+            var listFolders = new TransformManyBlock<string[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
             var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
-            var createItemQueries = new TransformBlock<MetadataType, MetadataListQuery>(type => new MetadataListQuery(type));
+            var createItemQueries = new TransformBlock<string, MetadataListQuery>(type => new MetadataListQuery(type));
             var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
             var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries), parallelismOptions);
             var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
 
-            source.LinkTo(batchFolderTypes, linkOptions, type => mMetadataRules.GetIsFolderized(type));
-            source.LinkTo(createItemQueries, linkOptions, type => !mMetadataRules.GetIsFolderized(type));
+            source.LinkTo(batchFolderTypes, linkOptions, type => metadataDescription.Types[type].IsFolderized);
+            source.LinkTo(createItemQueries, linkOptions, type => !metadataDescription.Types[type].IsFolderized);
             batchFolderTypes.LinkTo(listFolders, linkOptions);
             listFolders.LinkTo(createFolderItemQueries, linkOptions);
             createFolderItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
@@ -69,7 +71,7 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             return await mClient.ListItemsAsync(queries);
         }
 
-        public async Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, string outputDirectoryPath)
+        public async Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, string outputDirectoryPath)
         {
             Directory.CreateDirectory(outputDirectoryPath);
 
@@ -87,9 +89,9 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
             return await RetrieveAsync(itemReferences, entryProcessorAsync);
         }
 
-        public async Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+        public async Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
         {
-            var result = new Dictionary<MetadataRetrieveSpec, bool>();
+            var result = new Dictionary<MetadataRetrieveQuery, bool>();
 
             if (!itemReferences.Any())
                 return result;

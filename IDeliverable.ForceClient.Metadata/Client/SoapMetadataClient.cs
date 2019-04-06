@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata.Deploy;
+using IDeliverable.ForceClient.Metadata.Describe;
 using IDeliverable.ForceClient.Metadata.ForceMetadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using Microsoft.Extensions.Logging;
@@ -34,15 +35,40 @@ namespace IDeliverable.ForceClient.Metadata.Client
         private readonly IMapper mMapper;
         private readonly IAsyncPolicy mRetryPolicy;
 
-        public async Task<IEnumerable<MetadataFolderInfo>> ListFoldersAsync(IEnumerable<MetadataType> types)
+        public async Task<MetadataDescription> DescribeAsync()
+        {
+            try
+            {
+                await EnsureClientHasEndpointAddressAsync();
+                var header = await GetAuthenticationHeaderAsync();
+                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(header, null, mMetadataRules.MetadataApiVersion))).result;
+
+                var types =
+                    response.metadataObjects
+                        .ToDictionary(x => x.xmlName, x => new MetadataTypeDescription(x.xmlName, x.directoryName, x.suffix, x.inFolder, x.metaFile, x.childXmlNames));
+
+                var result = new MetadataDescription(response.organizationNamespace, response.partialSaveAllowed, response.testRequired, types);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                mLogger.LogError(ex, "Error while describing org metadata.");
+                if (ex is FaultException fex)
+                    throw new MetadataException(fex.Reason.ToString(), fex.Code.Name, fex);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<MetadataFolderInfo>> ListFoldersAsync(IEnumerable<string> types)
         {
             var folderSuffix = "Folder";
 
             if (types.Count() > mMetadataRules.MaxListMetadataQueriesPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(types), $"The number of metadata types ({types.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxListMetadataQueriesPerRequest}).");
 
-            if (types.Any(type => !mMetadataRules.GetIsFolderized(type)))
-                throw new ArgumentException("One or more of the specified metadata types is not a folderized type.", nameof(types));
+            //if (types.Any(type => !mMetadataRules.GetIsFolderized(type)))
+            //    throw new ArgumentException("One or more of the specified metadata types is not a folderized type.", nameof(types));
 
             var folderQueries =
                 types
@@ -57,8 +83,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
                 var folderInfoQuery =
                     from fileProperties in response.result
-                    let typeString = fileProperties.type.EndsWith(folderSuffix) ? fileProperties.type.Substring(0, fileProperties.type.Length - folderSuffix.Length) : fileProperties.type
-                    let type = (MetadataType)Enum.Parse(typeof(MetadataType), typeString)
+                    let type = fileProperties.type.EndsWith(folderSuffix) ? fileProperties.type.Substring(0, fileProperties.type.Length - folderSuffix.Length) : fileProperties.type
                     select new MetadataFolderInfo(fileProperties.fullName, type);
                 var folderInfoList = folderInfoQuery.ToArray();
 
@@ -78,8 +103,8 @@ namespace IDeliverable.ForceClient.Metadata.Client
             if (queries.Count() > mMetadataRules.MaxListMetadataQueriesPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(queries), $"The number of metadata queries ({queries.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxListMetadataQueriesPerRequest}).");
 
-            if (queries.Any(query => mMetadataRules.GetIsFolderized(query.Type) && String.IsNullOrEmpty(query.InFolder)))
-                throw new ArgumentException($"One or more of the specified metadata types is a folderized type but no folder is specified; use {nameof(ListFoldersAsync)} first to obtain the available folders.", nameof(queries));
+            //if (queries.Any(query => mMetadataRules.GetIsFolderized(query.Type) && String.IsNullOrEmpty(query.InFolder)))
+            //    throw new ArgumentException($"One or more of the specified metadata types is a folderized type but no folder is specified; use {nameof(ListFoldersAsync)} first to obtain the available folders.", nameof(queries));
 
             var itemsQueries =
                 queries
@@ -119,7 +144,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             }
         }
 
-        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveSpec> items)
+        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveQuery> items)
         {
             if (items.Count() > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(items), $"The number of metadata items to retrieve ({items.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxRetrieveMetadataItemsPerRequest}).");

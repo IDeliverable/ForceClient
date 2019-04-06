@@ -1,14 +1,14 @@
-namespace IDeliverable.ForceClient.Metadata.Client
+namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataListQuery
     {
-        public MetadataListQuery(MetadataType type, string inFolder = null)
+        public MetadataListQuery(string type, string inFolder = null)
         {
             Type = type;
             InFolder = inFolder;
         }
 
-        public MetadataType Type { get; }
+        public string Type { get; }
         public string InFolder { get; }
     }
 }

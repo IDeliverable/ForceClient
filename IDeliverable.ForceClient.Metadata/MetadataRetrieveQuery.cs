@@ -1,14 +1,14 @@
 namespace IDeliverable.ForceClient.Metadata
 {
-    public class MetadataRetrieveSpec
+    public class MetadataRetrieveQuery
     {
-        public MetadataRetrieveSpec(MetadataType type, string name)
+        public MetadataRetrieveQuery(string type, string name)
         {
             Name = name;
             Type = type;
         }
 
-        public MetadataType Type { get; }
+        public string Type { get; }
         public string Name { get; }
     }
 }

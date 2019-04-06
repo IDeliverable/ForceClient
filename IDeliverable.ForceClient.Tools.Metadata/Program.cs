@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
@@ -7,6 +8,8 @@ using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IDeliverable.ForceClient.Tools.Metadata.Authentication;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Serilog;
 
 namespace IDeliverable.ForceClient.Tools.Metadata
@@ -37,27 +40,32 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             var metadataRules = services.GetRequiredService<MetadataRules>();
             var retrieveWorker = retrieveWorkerFactory.CreateRetrieveWorker(orgAccessProvider);
 
-            var client = (services.GetRequiredService<IMetadataClientFactory>()).CreateClient(orgAccessProvider);
+            var client = services.GetRequiredService<IMetadataClientFactory>().CreateClient(orgAccessProvider);
+
+            var jsonSettings = new JsonSerializerSettings();
+            jsonSettings.Formatting = Formatting.Indented;
+            jsonSettings.Converters.Add(new StringEnumConverter());
 
             try
             {
-                //Console.WriteLine("Listing metadata items...");
-                //var metadataTypes = metadataRules.GetSupportedTypes();
-                //var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypes);
-                //Console.WriteLine($"{itemInfoList.Count()} items found.");
+                Console.WriteLine("Describing metadata...");
+                var metadataDescription = await client.DescribeAsync();
+                var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
+                await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
 
-                //var jsonSettings = new JsonSerializerSettings();
-                //jsonSettings.Formatting = Formatting.Indented;
-                //jsonSettings.Converters.Add(new StringEnumConverter());
-                //var jsonText = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
-                //await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", jsonText);
+                Console.WriteLine("Listing metadata items...");
+                var metadataTypeNames = metadataDescription.Types.Keys;
+                var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypeNames);
+                Console.WriteLine($"{itemInfoList.Count()} items found.");
+                var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
+                await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
 
-                var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveSpec(MetadataType.CustomObject, "*") });
-                RetrieveResult result;
-                while (!(result = await client.GetRetrieveResultAsync(operationId)).IsDone)
-                    await Task.Delay(TimeSpan.FromSeconds(3));
+                //var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveSpec(MetadataType.CustomObject, "*") });
+                //RetrieveResult result;
+                //while (!(result = await client.GetRetrieveResultAsync(operationId)).IsDone)
+                //    await Task.Delay(TimeSpan.FromSeconds(3));
 
-                await File.WriteAllBytesAsync(@"C:\Temp\Metadata.zip", result.ZipFile);
+                //await File.WriteAllBytesAsync(@"C:\Temp\Metadata.zip", result.ZipFile);
 
                 //logger.LogInformation("Retrieving metadata...");
 

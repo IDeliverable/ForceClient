@@ -15,7 +15,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             return new MetadataItemInfo(
                 fileProperties.id,
                 fileProperties.fullName,
-                (MetadataType)Enum.Parse(typeof(MetadataType), fileProperties.type),
+                fileProperties.type,
                 fileProperties.fileName,
                 fileProperties.createdById,
                 fileProperties.createdByName,

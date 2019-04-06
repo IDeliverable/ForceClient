@@ -2,15 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Threading.Tasks;
-using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Retrieve
 {
 	public interface IRetrieveWorker
 	{
-		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataType> types);
+		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<string> types);
 		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries);
-		Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
-		Task<IReadOnlyDictionary<MetadataRetrieveSpec, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveSpec> itemReferences, string outputDirectoryPath);
+		Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
+		Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, string outputDirectoryPath);
 	}
 }

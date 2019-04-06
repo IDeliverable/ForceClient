@@ -1,11 +1,10 @@
 using System;
-using IDeliverable.ForceClient.Metadata.ForceMetadata;
 
 namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataItemInfo
     {
-        public MetadataItemInfo(string id, string name, MetadataType type, string filePath, string createdById, string createdByName, DateTime createdUtc, string lastModifiedById, string lastModifiedByName, DateTime lastModifiedUtc, bool isInPackage, string namespacePrefix)
+        public MetadataItemInfo(string id, string name, string type, string filePath, string createdById, string createdByName, DateTime createdUtc, string lastModifiedById, string lastModifiedByName, DateTime lastModifiedUtc, bool isInPackage, string namespacePrefix)
         {
             Id = id;
             Name = name;
@@ -23,7 +22,7 @@ namespace IDeliverable.ForceClient.Metadata
 
         public string Id { get; }
         public string Name { get; }
-        public MetadataType Type { get; }
+        public string Type { get; }
         public string FilePath { get; }
         public string CreatedById { get; }
         public string CreatedByName { get; }
