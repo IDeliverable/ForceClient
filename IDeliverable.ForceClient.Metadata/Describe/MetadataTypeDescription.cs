@@ -1,17 +1,18 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace IDeliverable.ForceClient.Metadata.Describe
 {
     public class MetadataTypeDescription
     {
-        internal MetadataTypeDescription(string name, string archiveDirectoryName, string archiveFileNameExtension, bool isFolderized, bool hasMetaFile, IEnumerable<string> nestedTypeNames)
+        internal MetadataTypeDescription(string name, string archiveDirectoryName, string archiveFileNameExtension, bool isFolderized, bool hasMetaFile, IEnumerable<NestedMetadataTypeDescription> nestedTypes)
         {
             Name = name;
             ArchiveDirectoryName = archiveDirectoryName;
             ArchiveFileNameExtension = archiveFileNameExtension;
             IsFolderized = isFolderized;
             HasMetaFile = hasMetaFile;
-            NestedTypeNames = nestedTypeNames;
+            NestedTypes = nestedTypes;
         }
 
         /// <summary>
@@ -42,6 +43,11 @@ namespace IDeliverable.ForceClient.Metadata.Describe
         /// <summary>
         /// List of metadata types whose components are nested within components of this type.
         /// </summary>
-        public IEnumerable<string> NestedTypeNames { get; }
+        public IEnumerable<NestedMetadataTypeDescription> NestedTypes { get; }
+
+        /// <summary>
+        /// Indicates whether this type has any nested types.
+        /// </summary>
+        public bool HasNestedTypes => NestedTypes != null && NestedTypes.Any();
     }
 }

@@ -53,12 +53,22 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
                 await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
 
-                Console.WriteLine("Listing metadata items...");
-                var metadataTypeNames = metadataDescription.Types.Keys;
-                var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypeNames);
-                Console.WriteLine($"{itemInfoList.Count()} items found.");
-                var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
-                await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
+                //Console.WriteLine("Describing type CustomObject...");
+                //var objectDescription = await client.DescribeTypeAsync("CustomObject");
+                //var objectDescriptionJson = JsonConvert.SerializeObject(objectDescription, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\CustomObjectDescription.json", objectDescriptionJson);
+
+                //Console.WriteLine("Describing type CustomField...");
+                //var fieldDescription = await client.DescribeTypeAsync("CustomField");
+                //var fieldDescriptionJson = JsonConvert.SerializeObject(fieldDescription, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\CustomFieldDescription.json", fieldDescriptionJson);
+
+                //Console.WriteLine("Listing metadata items...");
+                //var metadataTypeNames = metadataDescription.Types.Keys;
+                //var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypeNames);
+                //Console.WriteLine($"{itemInfoList.Count()} items found.");
+                //var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
 
                 //var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveSpec(MetadataType.CustomObject, "*") });
                 //RetrieveResult result;

@@ -4,9 +4,9 @@ namespace IDeliverable.ForceClient.Metadata.Describe
 {
     public class MetadataDescription
     {
-        internal MetadataDescription(string @namespace, bool partialSaveIsAllowed, bool testIsRequired, IReadOnlyDictionary<string, MetadataTypeDescription> types)
+        internal MetadataDescription(string orgNamespace, bool partialSaveIsAllowed, bool testIsRequired, IReadOnlyDictionary<string, MetadataTypeDescription> types)
         {
-            Namespace = @namespace;
+            OrgNamespace = orgNamespace;
             PartialSaveIsAllowed = partialSaveIsAllowed;
             TestIsRequired = testIsRequired;
             Types = types;
@@ -15,7 +15,7 @@ namespace IDeliverable.ForceClient.Metadata.Describe
         /// <summary>
         /// The namespace of the organization. Specify only for Developer Edition organizations that can contain a managed package. The managed package has a namespace specified when it is created.
         /// </summary>
-        public string Namespace { get; }
+        public string OrgNamespace { get; }
 
         /// <summary>
         /// Indicates whether it is allowed (true) or not (false) to specify <c>rollbackOnError</c> as <c>false</c> when deploying to this org. Always <c>false</c> for production orgs.

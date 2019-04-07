@@ -43,9 +43,28 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 var header = await GetAuthenticationHeaderAsync();
                 var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(header, null, mMetadataRules.MetadataApiVersion))).result;
 
-                var types =
-                    response.metadataObjects
-                        .ToDictionary(x => x.xmlName, x => new MetadataTypeDescription(x.xmlName, x.directoryName, x.suffix, x.inFolder, x.metaFile, x.childXmlNames));
+                var types = new Dictionary<string, MetadataTypeDescription>();
+
+                foreach (var metadataObject in response.metadataObjects)
+                {
+                    IEnumerable<NestedMetadataTypeDescription> nestedTypesQuery = null;
+                    if (metadataObject.childXmlNames != null && metadataObject.childXmlNames.Any())
+                    {
+                        var metadataObjectDetails = await DescribeTypeAsync(metadataObject.xmlName);
+                        nestedTypesQuery =
+                            from nestedTypeName in metadataObject.childXmlNames
+                            let element =
+                                metadataObjectDetails.valueTypeFields
+                                    .Where(x => !(x.soapType == "CustomField" && x.name == "nameField")) // A known case where we can't reliably determine name to XML element name mapping.
+                                    .SingleOrDefault(x => x.soapType == nestedTypeName)
+                            where element != null
+                            let elementName = element.name
+                            let keyChildElementName = element.fields.Single(x => x.isNameField).name
+                            select new NestedMetadataTypeDescription(nestedTypeName, elementName, keyChildElementName);
+                    }
+
+                    types.Add(metadataObject.xmlName, new MetadataTypeDescription(metadataObject.xmlName, metadataObject.directoryName, metadataObject.suffix, metadataObject.inFolder, metadataObject.metaFile, nestedTypesQuery?.ToArray()));
+                }
 
                 var result = new MetadataDescription(response.organizationNamespace, response.partialSaveAllowed, response.testRequired, types);
 
@@ -211,6 +230,23 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 result.numberTestsTotal,
                 result.numberTestsCompleted,
                 result.numberTestErrors);
+        }
+
+        private async Task<DescribeValueTypeResult> DescribeTypeAsync(string type)
+        {
+            try
+            {
+                var header = await GetAuthenticationHeaderAsync();
+                var fullType = "{http://soap.sforce.com/2006/04/metadata}" + type;
+                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeValueTypeAsync(header, fullType))).result;
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                mLogger.LogError(ex, $"Error while describing metadata type {type}.");
+                throw;
+            }
         }
 
         private async Task EnsureClientHasEndpointAddressAsync()
