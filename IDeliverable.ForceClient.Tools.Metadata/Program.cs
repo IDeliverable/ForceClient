@@ -4,10 +4,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
+using IDeliverable.ForceClient.Metadata.Archives;
+using IDeliverable.ForceClient.Metadata.Archives.Storage;
 using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.ForceClient.Metadata.Retrieve;
 using IDeliverable.ForceClient.Tools.Metadata.Authentication;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
@@ -70,12 +74,26 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 //var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
                 //await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
 
-                //var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveSpec(MetadataType.CustomObject, "*") });
+                //var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveQuery("CustomObject", "*") });
                 //RetrieveResult result;
                 //while (!(result = await client.GetRetrieveResultAsync(operationId)).IsDone)
                 //    await Task.Delay(TimeSpan.FromSeconds(3));
 
                 //await File.WriteAllBytesAsync(@"C:\Temp\Metadata.zip", result.ZipFile);
+
+                var storage = new DirectoryArchiveStorage(@"C:\Temp\Metadata", services.GetService<ILogger<DirectoryArchiveStorage>>());
+
+                //var package = new Package(storage, metadataDescription, "Geopointe", "Geopointe");
+                //var components = await package.GetComponentsAsync();
+                //var componentsJson = JsonConvert.SerializeObject(components, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\GeopointeComponents.json", componentsJson);
+                //await package.WriteManifestAsync();
+
+                //package = new Package(storage, metadataDescription, null, "unpackaged");
+                //components = await package.GetComponentsAsync();
+                //componentsJson = JsonConvert.SerializeObject(components, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\UnpackagedComponents.json", componentsJson);
+                //await package.WriteManifestAsync();
 
                 //logger.LogInformation("Retrieving metadata...");
 

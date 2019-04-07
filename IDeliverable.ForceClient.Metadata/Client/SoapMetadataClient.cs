@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.ServiceModel;
 using System.Threading.Tasks;
@@ -174,7 +175,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 select new PackageTypeMembers() { name = itemTypeGroup.Key.ToString(), members = itemTypeGroup.ToArray() };
 
             var package = new Package() { types = typeMembersQuery.ToArray() };
-            var request = new RetrieveRequest() { unpackaged = package, singlePackage = true };
+            var request = new RetrieveRequest() { unpackaged = package, singlePackage = false };
 
             await EnsureClientHasEndpointAddressAsync();
             var header = await GetAuthenticationHeaderAsync();
@@ -254,7 +255,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             if (mClient.Endpoint.Address != null)
                 return;
             var soapUrl = await mOrgAccessProvider.GetSoapUrlAsync();
-            var endpointAddress = new EndpointAddress(new Uri(soapUrl.Replace("{version}", mMetadataRules.MetadataApiVersion.ToString())));
+            var endpointAddress = new EndpointAddress(new Uri(soapUrl.Replace("{version}", mMetadataRules.MetadataApiVersion.ToString(CultureInfo.InvariantCulture))));
             mClient.Endpoint.Address = endpointAddress;
         }
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj" />
+    <ProjectReference Include="..\IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj" />
     <ProjectReference Include="..\IDeliverable.ForceClient.Metadata\IDeliverable.ForceClient.Metadata.csproj" />
   </ItemGroup>
 

@@ -12,14 +12,18 @@ using IDeliverable.ForceClient.Metadata.Describe;
 
 namespace IDeliverable.ForceClient.Metadata.Archives
 {
-    public class Component
+    public class Component : IEquatable<Component>
     {
         internal Component(IArchiveStorage storage, MetadataTypeDescription typeDescription, string name, string filePath)
         {
             mStorage = storage;
             mTypeDescription = typeDescription;
+
             Name = name;
             FilePath = filePath;
+
+            if (mTypeDescription.HasMetaFile)
+                MetaFilePath = $"{FilePath}-meta.xml";
 
             // TODO: Create file if it doesn't already exist?
             // TODO: Create meta file if required and it doesn't already exist?
@@ -31,32 +35,52 @@ namespace IDeliverable.ForceClient.Metadata.Archives
         public string Type => mTypeDescription.Name;
         public string Name { get; }
         public string FilePath { get; }
+        public string MetaFilePath { get; }
+
+        public bool Equals(Component other)
+        {
+            return Type == other.Type && Name == other.Name;
+        }
 
         public async Task MergeFromAsync(Component other)
         {
-            if (other.mTypeDescription.Name != mTypeDescription.Name)
-                throw new ArgumentException($"Other component is of a different type ({other.mTypeDescription.Name}) than this one ({mTypeDescription.Name}).", nameof(other));
+            if (other.Type != Type)
+                throw new ArgumentException($"Other component is of a different type ({other.Type}) than this one ({Type}).", nameof(other));
+            if (other.Name != Name)
+                throw new ArgumentException($"Other component has a different name ({other.Name}) than this one ({Name}).", nameof(other));
 
             if (!mTypeDescription.HasNestedTypes)
                 return;
 
-            // TODO: Maybe check here if it's a valid XML file.
+            // TODO: Maybe check here if it's a valid XML file. For now, the assumption is that if the type has nested types, it must be in XML format.
 
             var doc = await LoadDocumentAsync();
             var nestedComponents = GetNestedComponents(doc);
             var otherNestedComponents = await other.GetNestedComponentsAsync();
 
-            var componentsToAdd = otherNestedComponents.Except(nestedComponents, new NestedComponent.EqualityComparer());
+            var componentsToAdd = otherNestedComponents.Except(nestedComponents);
             foreach (var component in componentsToAdd)
                 doc.Root.Add(component.Xml);
 
             await SaveDocumentAsync(doc);
         }
 
+        public async Task CopyFromAsync(Component other)
+        {
+            using (var readStream = await other.OpenReadAsync())
+                await other.WriteAsync(readStream);
+
+            if (mTypeDescription.HasMetaFile)
+            {
+                using (var metaFileReadStream = await other.OpenMetaFileReadAsync())
+                    await other.WriteMetaFileAsync(metaFileReadStream);
+            }
+        }
+
         public async Task<IEnumerable<NestedComponent>> GetNestedComponentsAsync()
         {
             if (!mTypeDescription.HasNestedTypes)
-                return null;
+                return Enumerable.Empty<NestedComponent>();
 
             var doc = await LoadDocumentAsync();
             var result = GetNestedComponents(doc);
@@ -71,19 +95,43 @@ namespace IDeliverable.ForceClient.Metadata.Archives
         public Task<Stream> OpenWriteAsync()
         {
             return mStorage.OpenWriteAsync(FilePath);
-            // TODO: Update the package manifest with any nested components that may have been added/modified/removed.
         }
 
         public Task WriteAsync(Stream content)
         {
             return mStorage.WriteAsync(FilePath, content);
-            // TODO: Update the package manifest with any nested components that may have been added/modified/removed.
         }
 
-        public Task DeleteAsync()
+        public Task<Stream> OpenMetaFileReadAsync()
         {
-            return mStorage.DeleteAsync(FilePath);
-            // TODO: Update the package manifest with any nested components that were.
+            if (!mTypeDescription.HasMetaFile)
+                throw new Exception($"Components of type {Type} do not have meta files.");
+
+            return mStorage.OpenReadAsync(MetaFilePath);
+        }
+
+        public Task<Stream> OpenMetaFileWriteAsync()
+        {
+            if (!mTypeDescription.HasMetaFile)
+                throw new Exception($"Components of type {Type} do not have meta files.");
+
+            return mStorage.OpenWriteAsync(MetaFilePath);
+        }
+
+        public Task WriteMetaFileAsync(Stream content)
+        {
+            if (!mTypeDescription.HasMetaFile)
+                throw new Exception($"Components of type {Type} do not have meta files.");
+
+            return mStorage.WriteAsync(MetaFilePath, content);
+        }
+
+        public async Task DeleteAsync()
+        {
+            await mStorage.DeleteAsync(FilePath);
+
+            if (mTypeDescription.HasMetaFile)
+                await mStorage.DeleteAsync(MetaFilePath);
         }
 
         private async Task<XDocument> LoadDocumentAsync()
