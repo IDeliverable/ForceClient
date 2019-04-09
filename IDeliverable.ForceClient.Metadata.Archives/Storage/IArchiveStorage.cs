@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace IDeliverable.ForceClient.Metadata.Archives.Storage
@@ -72,5 +74,52 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
         /// <param name="filePath">The path of the file to check.</param>
         /// <returns><c>true</c> if the file exists, otherwise <c>false</c>.</returns>
         Task<bool> GetExistsAsync(string filePath);
+    }
+
+    public static class IArchiveStorageExtentions
+    {
+        public static async Task LoadFromZipAsync(this IArchiveStorage storage, byte[] zipBytes)
+        {
+            using (var zipStream = new MemoryStream(zipBytes))
+                await storage.LoadFromZipAsync(zipStream);
+        }
+
+        public static async Task LoadFromZipAsync(this IArchiveStorage storage, Stream zipStream)
+        {
+            using (var zipArchive = new ZipArchive(zipStream, ZipArchiveMode.Read))
+            {
+                // TODO: Speed this up using a simple buffered TPL pipeline.
+                foreach (var zipEntry in zipArchive.Entries)
+                {
+                    using (var zipEntryStream = zipEntry.Open())
+                        await storage.WriteAsync(zipEntry.FullName, zipEntryStream);
+                }
+            }
+        }
+
+        public static async Task SaveToZipAsync(this IArchiveStorage storage, byte[] zipBytes)
+        {
+            using (var zipStream = new MemoryStream(zipBytes))
+                await storage.SaveToZipAsync(zipStream);
+        }
+
+        public static async Task SaveToZipAsync(this IArchiveStorage storage, Stream zipStream)
+        {
+            using (var zipArchive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var filePathsQuery =
+                    from filePath in await storage.ListAsync(directoryPath: null)
+                    where !filePath.StartsWith(".")
+                    select filePath;
+
+                // TODO: Speed this up using a simple buffered TPL pipeline.
+                foreach (var filePath in filePathsQuery)
+                {
+                    var zipEntry = zipArchive.CreateEntry(filePath);
+                    using (Stream fileStream = await storage.OpenReadAsync(filePath), zipEntryStream = zipEntry.Open())
+                        await fileStream.CopyToAsync(zipEntryStream);
+                }
+            }
+        }
     }
 }
