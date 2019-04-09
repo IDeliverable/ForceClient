@@ -24,9 +24,6 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
             if (mTypeDescription.HasMetaFile)
                 MetaFilePath = $"{FilePath}-meta.xml";
-
-            // TODO: Create file if it doesn't already exist?
-            // TODO: Create meta file if required and it doesn't already exist?
         }
 
         private readonly IArchiveStorage mStorage;
@@ -39,7 +36,19 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
         public bool Equals(Component other)
         {
+            if (other == null)
+                return false;
             return Type == other.Type && Name == other.Name;
+        }
+
+        public override bool Equals(object other)
+        {
+            return Equals(other as Component);
+        }
+
+        public override int GetHashCode()
+        {
+            return (Type, Name).GetHashCode();
         }
 
         public async Task MergeFromAsync(Component other)
@@ -52,7 +61,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             if (!mTypeDescription.HasNestedTypes)
                 return;
 
-            // TODO: Maybe check here if it's a valid XML file. For now, the assumption is that if the type has nested types, it must be in XML format.
+            // Maybe check here if it's a valid XML file. For now, the assumption is that if the type has nested types, it must be in XML format.
 
             var doc = await LoadDocumentAsync();
             var nestedComponents = GetNestedComponents(doc);
@@ -68,12 +77,12 @@ namespace IDeliverable.ForceClient.Metadata.Archives
         public async Task CopyFromAsync(Component other)
         {
             using (var readStream = await other.OpenReadAsync())
-                await other.WriteAsync(readStream);
+                await WriteAsync(readStream);
 
             if (mTypeDescription.HasMetaFile)
             {
                 using (var metaFileReadStream = await other.OpenMetaFileReadAsync())
-                    await other.WriteMetaFileAsync(metaFileReadStream);
+                    await WriteMetaFileAsync(metaFileReadStream);
             }
         }
 

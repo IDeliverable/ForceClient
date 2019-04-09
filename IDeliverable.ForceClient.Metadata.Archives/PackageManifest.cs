@@ -15,7 +15,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
     {
         private static readonly XNamespace mNamespace = XNamespace.Get("http://soap.sforce.com/2006/04/metadata");
 
-        public static async Task<PackageManifest> LoadFromAsync(IArchiveStorage storage, string filePath)
+        public static async Task<PackageManifest> LoadAsync(IArchiveStorage storage, string filePath)
         {
             XDocument doc = null;
             using (var readStream = await storage.OpenReadAsync(filePath))
@@ -23,8 +23,10 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return new PackageManifest(doc);
         }
 
-        public PackageManifest()
+        public PackageManifest(string name, double apiVersion)
         {
+            Name = name;
+            ApiVersion = apiVersion;
             Components = new HashSet<(string, string)>();
         }
 
@@ -37,7 +39,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 throw new ArgumentException($"The element '{rootElement.Name}' is not supported.");
 
             // Only present for managed packages.
-            Name = rootElement.Element(XName.Get("fullName", namespaceName))?.Value;
+            Name = rootElement.Element(XName.Get("fullName", namespaceName))?.Value ?? "unpackaged";
             var apiAccessLevelString = rootElement.Element(XName.Get("apiAccessLevel", namespaceName))?.Value;
             if (apiAccessLevelString != null)
                 ApiAccessLevel = (ApiAccessLevel)Enum.Parse(typeof(ApiAccessLevel), apiAccessLevelString);
@@ -53,23 +55,35 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                     Components.Add((type, memberElement.Value));
             }
 
-            Version = Double.Parse(rootElement.Element(XName.Get("version", namespaceName)).Value, CultureInfo.InvariantCulture);
+            ApiVersion = Double.Parse(rootElement.Element(XName.Get("version", namespaceName)).Value, CultureInfo.InvariantCulture);
         }
 
         public string Name { get; }
-        public ApiAccessLevel? ApiAccessLevel { get; }
-        public string Description { get; }
-        public string NamespacePrefix { get; }
-        public string SetupWeblink { get; }
+        public ApiAccessLevel? ApiAccessLevel { get; private set; }
+        public string Description { get; private set; }
+        public string NamespacePrefix { get; private set; }
+        public string SetupWeblink { get; private set; }
         public ISet<(string type, string name)> Components { get; }
-        public double Version { get; }
+        public double ApiVersion { get; }
 
-        public async Task SaveToAsync(IArchiveStorage storage, string filePath)
+        public void MergePropertiesFrom(PackageManifest other)
+        {
+            if (other.ApiAccessLevel.HasValue)
+                ApiAccessLevel = other.ApiAccessLevel;
+            if (!String.IsNullOrEmpty(other.Description))
+                Description = other.Description;
+            if (!String.IsNullOrEmpty(other.NamespacePrefix))
+                NamespacePrefix = other.NamespacePrefix;
+            if (!String.IsNullOrEmpty(other.SetupWeblink))
+                SetupWeblink = other.SetupWeblink;
+        }
+
+        public async Task SaveAsync(IArchiveStorage storage, string filePath)
         {
             var elements = new List<XElement>();
 
             // Only present for managed packages.
-            if (!String.IsNullOrEmpty(Name))
+            if (!String.IsNullOrEmpty(Name) && Name != "unpackaged")
                 elements.Add(new XElement(mNamespace + "fullName", Name));
             if (ApiAccessLevel.HasValue)
                 elements.Add(new XElement(mNamespace + "apiAccessLevel", ApiAccessLevel.Value.ToString()));
@@ -87,11 +101,12 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 select new XElement(mNamespace + "types",
                     from member in typeGroup
                     orderby member
-                    select new XElement(mNamespace + "members", member)
+                    select new XElement(mNamespace + "members", member),
+                    new XElement(mNamespace + "name", typeGroup.Key)
                 );
             elements.AddRange(componentElements);
 
-            elements.Add(new XElement(mNamespace + "version", Version.ToString(CultureInfo.InvariantCulture)));
+            elements.Add(new XElement(mNamespace + "version", ApiVersion.ToString("F1", CultureInfo.InvariantCulture)));
 
             var rootElement = new XElement(mNamespace + "Package", elements);
             var doc = new XDocument(rootElement);

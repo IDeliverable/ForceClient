@@ -54,8 +54,24 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             {
                 Console.WriteLine("Describing metadata...");
                 var metadataDescription = await client.DescribeAsync();
-                var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
-                await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
+
+                Console.WriteLine("Loading source archive...");
+                var storage1 = new DirectoryArchiveStorage(@"C:\Temp\Metadata", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                var archive1 = await Archive.LoadAsync(storage1, metadataDescription);
+
+                Console.WriteLine("Loading target archive...");
+                var storage2 = new DirectoryArchiveStorage(@"C:\Temp\MultiPackageArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                var archive2 = await Archive.LoadAsync(storage2, metadataDescription);
+
+                Console.WriteLine("Merging source inte target...");
+                await archive2.MergeFromAsync(archive1);
+
+                Console.WriteLine("Writing package manifests in target archive...");
+                foreach (var package in await archive2.GetPackagesAsync())
+                    await package.WriteManifestAsync(metadataRules.MetadataApiVersion);
+
+                //var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
+                //await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
 
                 //Console.WriteLine("Describing type CustomObject...");
                 //var objectDescription = await client.DescribeTypeAsync("CustomObject");
@@ -81,7 +97,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
                 //await File.WriteAllBytesAsync(@"C:\Temp\Metadata.zip", result.ZipFile);
 
-                var storage = new DirectoryArchiveStorage(@"C:\Temp\Metadata", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                //var storage = new DirectoryArchiveStorage(@"C:\Temp\Metadata", services.GetService<ILogger<DirectoryArchiveStorage>>());
 
                 //var package = new Package(storage, metadataDescription, "Geopointe", "Geopointe");
                 //var components = await package.GetComponentsAsync();

@@ -18,7 +18,19 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
         public bool Equals(NestedComponent other)
         {
+            if (other == null)
+                return false;
             return Type == other.Type && Name == other.Name;
+        }
+
+        public override bool Equals(object other)
+        {
+            return Equals(other as NestedComponent);
+        }
+
+        public override int GetHashCode()
+        {
+            return (Type, Name).GetHashCode();
         }
     }
 }

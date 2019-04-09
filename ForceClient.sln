@@ -14,9 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution", "Solution", "{B0
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Metadata.Packages", "IDeliverable.ForceClient.Metadata.Packages\IDeliverable.ForceClient.Metadata.Packages.csproj", "{11B8F783-5FC2-4511-A7B5-330BC24D6F05}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IDeliverable.ForceClient.Metadata.Archives", "IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj", "{AD6FDA22-B414-4449-9514-D125B4D3878D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Metadata.Archives", "IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj", "{AD6FDA22-B414-4449-9514-D125B4D3878D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,10 +34,6 @@ Global
 		{84919F45-6895-471A-B5E0-47F44E987C0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84919F45-6895-471A-B5E0-47F44E987C0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84919F45-6895-471A-B5E0-47F44E987C0F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{11B8F783-5FC2-4511-A7B5-330BC24D6F05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{11B8F783-5FC2-4511-A7B5-330BC24D6F05}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{11B8F783-5FC2-4511-A7B5-330BC24D6F05}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{11B8F783-5FC2-4511-A7B5-330BC24D6F05}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AD6FDA22-B414-4449-9514-D125B4D3878D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AD6FDA22-B414-4449-9514-D125B4D3878D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD6FDA22-B414-4449-9514-D125B4D3878D}.Release|Any CPU.ActiveCfg = Release|Any CPU

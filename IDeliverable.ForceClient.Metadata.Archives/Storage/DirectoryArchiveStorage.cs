@@ -51,7 +51,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
                 var matchingFilePathQuery =
                     from filePath in Directory.EnumerateFiles(absoluteDirectoryPath, pattern ?? "*", SearchOption.AllDirectories)
                     where filePath.StartsWith(absoluteDirectoryPath, StringComparison.InvariantCultureIgnoreCase)
-                    select filePath.Substring(absoluteDirectoryPath.Length);
+                    select filePath.Substring(absoluteDirectoryPath.Length).Replace(Path.DirectorySeparatorChar, '/');
 
                 return Task.FromResult<IEnumerable<string>>(matchingFilePathQuery.ToArray());
             }
@@ -180,6 +180,9 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
 
         protected virtual string NormalizePath(string path)
         {
+            if (String.IsNullOrWhiteSpace(path))
+                return "";
+
             return path
                 .Trim('\\', '/')
                 .Replace('\\', Path.DirectorySeparatorChar)
