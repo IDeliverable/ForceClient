@@ -1,4 +1,4 @@
-namespace IDeliverable.ForceClient.Metadata.Archives
+namespace IDeliverable.ForceClient.Core
 {
     public enum ApiAccessLevel
     {

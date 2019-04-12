@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata.Archives.Storage;
 
 namespace IDeliverable.ForceClient.Metadata.Archives
