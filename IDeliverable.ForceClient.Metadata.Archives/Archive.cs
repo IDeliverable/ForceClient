@@ -97,7 +97,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return subdirectoryNamesQuery.Distinct().ToArray();
         }
 
-        internal Archive(IArchiveStorage storage, MetadataDescription metadataDescription, bool isSinglePackage)
+        public Archive(IArchiveStorage storage, MetadataDescription metadataDescription, bool isSinglePackage)
         {
             mStorage = storage;
             mMetadataDescription = metadataDescription;
@@ -134,11 +134,27 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
             var packagesToMerge = packages.Join(otherPackages, package => package, otherPackage => otherPackage, (package, otherPackage) => (package, otherPackage));
             foreach (var (package, otherPackage) in packagesToMerge)
-                await package.MergeFromAsync(otherPackage);
+                await package.MergeFromAsync(otherPackage, propertiesOnly: false);
 
             var packagesToAdd = otherPackages.Except(packages);
             foreach (var package in packagesToAdd)
                 await ImportPackageAsync(package);
+        }
+
+        public async Task WriteDeltaSinceAsync(Archive previous, Archive outputDelta)
+        {
+            var packages = await GetPackagesAsync();
+            var previousPackages = await previous.GetPackagesAsync();
+
+            var packagePairs = packages.Join(previousPackages, package => package.Name, package => package.Name, (package, previousPackage) => (package, previousPackage));
+            foreach (var (package, previousPackage) in packagePairs)
+            {
+                var deltaPackage = await outputDelta.AddNewDeltaPackageAsync(package.Name);
+                await deltaPackage.MergeFromAsync(package, propertiesOnly: true);
+                await package.CreateDeltaSinceAsync(previousPackage, deltaPackage);
+                await deltaPackage.WriteManifestAsync(defaultApiVersion: null);
+                await deltaPackage.WriteDeleteManifestsAsync();
+            }
         }
 
         public async Task<Package> GetSinglePackageAsync()
@@ -171,23 +187,41 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return packages.Any(package => package.Name == name);
         }
 
-        public async Task<Package> ImportPackageAsync(Package importPackage)
+        public async Task<DeltaPackage> AddNewDeltaPackageAsync(string name)
         {
             if (IsSinglePackage)
-                throw new InvalidOperationException("Cannot import additional packages into a single-package archive.");
+            {
+                var packages = await GetPackagesAsync();
+                if (packages.Any())
+                    throw new InvalidOperationException("Cannot add additional packages in a single-package archive.");
+            }
 
-            if (await GetPackageExistsAsync(importPackage.Name) == true)
-                throw new InvalidOperationException($"Cannot import package '{importPackage.Name}' because it already exists in this archive.");
-
-            var newPackage = new Package(mStorage, mMetadataDescription, importPackage.Name, directoryPath: importPackage.Name);
-            await newPackage.MergeFromAsync(importPackage);
+            var newPackageDirectoryPath = IsSinglePackage ? null : name;
+            var newPackage = new DeltaPackage(mStorage, mMetadataDescription, name, newPackageDirectoryPath);
+            await newPackage.WriteManifestAsync(defaultApiVersion: null);
 
             return newPackage;
         }
 
-        public Task DeleteAsync()
+        public async Task<Package> ImportPackageAsync(Package importPackage)
         {
-            throw new NotImplementedException();
+            if (IsSinglePackage)
+            {
+                var packages = await GetPackagesAsync();
+                if (packages.Any())
+                    throw new InvalidOperationException("Cannot import additional packages into a single-package archive.");
+            }
+
+            if (await GetPackageExistsAsync(importPackage.Name) == true)
+                throw new InvalidOperationException($"Cannot import package '{importPackage.Name}' because it already exists in this archive.");
+
+            var newPackageDirectoryPath = IsSinglePackage ? null : importPackage.Name;
+            var newPackage = new Package(mStorage, mMetadataDescription, importPackage.Name, newPackageDirectoryPath);
+            await newPackage.MergeFromAsync(importPackage, propertiesOnly: false);
+
+            return newPackage;
         }
+
+        public delegate Package PackageFactory(string name, string directoryPath);
     }
 }

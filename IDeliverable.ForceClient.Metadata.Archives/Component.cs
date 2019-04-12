@@ -53,10 +53,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
         public async Task MergeFromAsync(Component other)
         {
-            if (other.Type != Type)
-                throw new ArgumentException($"Other component is of a different type ({other.Type}) than this one ({Type}).", nameof(other));
-            if (other.Name != Name)
-                throw new ArgumentException($"Other component has a different name ({other.Name}) than this one ({Name}).", nameof(other));
+            VerifyIsSame(other);
 
             if (!mTypeDescription.HasNestedTypes)
                 return;
@@ -76,6 +73,8 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
         public async Task CopyFromAsync(Component other)
         {
+            VerifyIsSame(other);
+
             using (var readStream = await other.OpenReadAsync())
                 await WriteAsync(readStream);
 
@@ -84,6 +83,44 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 using (var metaFileReadStream = await other.OpenMetaFileReadAsync())
                     await WriteMetaFileAsync(metaFileReadStream);
             }
+        }
+
+        public async Task<bool> GetIsModifiedSinceAsync(Component previous)
+        {
+            VerifyIsSame(previous);
+
+            using (Stream thisStream = await OpenReadAsync(), previousStream = await previous.OpenReadAsync())
+            {
+                if (thisStream.Length != previousStream.Length)
+                    return true;
+
+                for (var i = 0; i < thisStream.Length; i++)
+                {
+                    if (thisStream.ReadByte() != previousStream.ReadByte())
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public async Task<IEnumerable<(string type, string name)>> GetDeletedNestedComponentsSinceAsync(Component previous)
+        {
+            VerifyIsSame(previous);
+
+            if (!mTypeDescription.HasNestedTypes)
+                return Enumerable.Empty<(string type, string name)>();
+
+            var nested = await GetNestedComponentsAsync();
+            var previousNested = await previous.GetNestedComponentsAsync();
+
+            var result =
+                previousNested
+                    .Except(nested)
+                    .Select(component => (component.Type, component.Name))
+                    .ToArray();
+
+            return result;
         }
 
         public async Task<IEnumerable<NestedComponent>> GetNestedComponentsAsync()
@@ -185,6 +222,14 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                     .ToArray();
 
             return result;
+        }
+
+        private void VerifyIsSame(Component other)
+        {
+            if (other.Type != Type)
+                throw new ArgumentException($"Other component is of a different type ({other.Type}) than this one ({Type}).", nameof(other));
+            if (other.Name != Name)
+                throw new ArgumentException($"Other component has a different name ({other.Name}) than this one ({Name}).", nameof(other));
         }
     }
 }

@@ -15,7 +15,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
     {
         private static readonly XNamespace mNamespace = XNamespace.Get("http://soap.sforce.com/2006/04/metadata");
 
-        public static async Task<PackageManifest> LoadAsync(IArchiveStorage storage, string filePath)
+        internal static async Task<PackageManifest> LoadAsync(IArchiveStorage storage, string filePath)
         {
             XDocument doc = null;
             using (var readStream = await storage.OpenReadAsync(filePath))
@@ -23,14 +23,19 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return new PackageManifest(doc);
         }
 
-        public PackageManifest(string name, double apiVersion)
+        internal PackageManifest(string name, double? apiVersion)
         {
             Name = name;
             ApiVersion = apiVersion;
             Components = new HashSet<(string, string)>();
         }
 
-        public PackageManifest(XDocument doc)
+        internal PackageManifest(IEnumerable<(string, string)> components)
+        {
+            Components = new HashSet<(string, string)>(components);
+        }
+
+        internal PackageManifest(XDocument doc)
         {
             var rootElement = doc.Root;
             var namespaceName = rootElement.Name.NamespaceName;
@@ -55,7 +60,10 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                     Components.Add((type, memberElement.Value));
             }
 
-            ApiVersion = Double.Parse(rootElement.Element(XName.Get("version", namespaceName)).Value, CultureInfo.InvariantCulture);
+            // Not present for deletion manifests.
+            var apiVersionString = rootElement.Element(XName.Get("version", namespaceName))?.Value;
+            if (apiVersionString != null)
+                ApiVersion = Double.Parse(apiVersionString, CultureInfo.InvariantCulture);
         }
 
         public string Name { get; }
@@ -64,7 +72,13 @@ namespace IDeliverable.ForceClient.Metadata.Archives
         public string NamespacePrefix { get; private set; }
         public string SetupWeblink { get; private set; }
         public ISet<(string type, string name)> Components { get; }
-        public double ApiVersion { get; }
+        public double? ApiVersion { get; private set; }
+
+        //public bool HasSignificantProperties =>
+        //    ApiAccessLevel.HasValue
+        //    || !String.IsNullOrEmpty(Description)
+        //    || !String.IsNullOrEmpty(NamespacePrefix)
+        //    || !String.IsNullOrEmpty(SetupWeblink);
 
         public void MergePropertiesFrom(PackageManifest other)
         {
@@ -76,6 +90,8 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 NamespacePrefix = other.NamespacePrefix;
             if (!String.IsNullOrEmpty(other.SetupWeblink))
                 SetupWeblink = other.SetupWeblink;
+            if (other.ApiVersion.HasValue)
+                ApiVersion = other.ApiVersion;
         }
 
         public async Task SaveAsync(IArchiveStorage storage, string filePath)
@@ -106,7 +122,8 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 );
             elements.AddRange(componentElements);
 
-            elements.Add(new XElement(mNamespace + "version", ApiVersion.ToString("F1", CultureInfo.InvariantCulture)));
+            if (ApiVersion.HasValue)
+                elements.Add(new XElement(mNamespace + "version", ApiVersion.Value.ToString("F1", CultureInfo.InvariantCulture)));
 
             var rootElement = new XElement(mNamespace + "Package", elements);
             var doc = new XDocument(rootElement);

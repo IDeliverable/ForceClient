@@ -31,7 +31,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return new Package(storage, metadataDescription, name, directoryPath);
         }
 
-        private static string CombinePath(params string[] parts)
+        protected static string CombinePath(params string[] parts)
         {
             var nonEmptyPartsQuery =
                 from part in parts
@@ -75,7 +75,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return Name.GetHashCode();
         }
 
-        public async Task MergeFromAsync(Package other)
+        public async Task MergeFromAsync(Package other, bool propertiesOnly)
         {
             if (other.Name != Name)
                 throw new ArgumentException($"Other package has a different name ({other.Name}) than this one ({Name}).", nameof(other));
@@ -87,16 +87,66 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 await manifest.SaveAsync(mStorage, mManifestFilePath);
             }
 
+            if (!propertiesOnly)
+            {
+                var components = await GetComponentsAsync();
+                var otherComponents = await other.GetComponentsAsync();
+
+                var componentsToMerge = components.Join(otherComponents, component => component, otherComponent => otherComponent, (component, otherComponent) => (component, otherComponent));
+                foreach (var (component, otherComponent) in componentsToMerge)
+                    await component.MergeFromAsync(otherComponent);
+
+                var componentsToAdd = otherComponents.Except(components);
+                foreach (var component in componentsToAdd)
+                    await ImportComponentAsync(component);
+            }
+        }
+
+        public async Task CreateDeltaSinceAsync(Package previous, DeltaPackage delta)
+        {
+            if (delta.Name != Name)
+                throw new ArgumentException($"Delta package has a different name ({delta.Name}) than this one ({Name}).", nameof(previous));
+
+            var diff = await GetDiffSinceAsync(previous);
+
+            foreach (var addedComponent in diff.Added)
+                await delta.ImportComponentAsync(addedComponent);
+            foreach (var modifiedComponent in diff.Modified)
+                await delta.ImportComponentAsync(modifiedComponent);
+            foreach (var deletedComponent in diff.Deleted)
+                delta.DeletePostComponents.Add(deletedComponent);
+        }
+
+        public async Task<PackageDiff> GetDiffSinceAsync(Package previous)
+        {
+            if (previous.Name != Name)
+                throw new ArgumentException($"Previous package has a different name ({previous.Name}) than this one ({Name}).", nameof(previous));
+
             var components = await GetComponentsAsync();
-            var otherComponents = await other.GetComponentsAsync();
+            var previousComponents = await previous.GetComponentsAsync();
+            var componentPairs = components.Join(previousComponents, component => (component.Type, component.Name), component => (component.Type, component.Name), (component, previousComponent) => (component, previousComponent));
 
-            var componentsToMerge = components.Join(otherComponents, component => component, otherComponent => otherComponent, (component, otherComponent) => (component, otherComponent));
-            foreach (var (component, otherComponent) in componentsToMerge)
-                await component.MergeFromAsync(otherComponent);
+            var addedComponents = components.Except(previousComponents);
+            var modifiedComponents = new HashSet<Component>();
+            var deletedComponents =
+                previousComponents
+                    .Except(components)
+                    .Select(component => (type: component.Type, name: component.Name))
+                    .ToHashSet();
 
-            var componentsToAdd = otherComponents.Except(components);
-            foreach (var component in componentsToAdd)
-                await ImportComponentAsync(component);
+            foreach (var (component, previousComponent) in componentPairs)
+            {
+                if (await component.GetIsModifiedSinceAsync(previousComponent))
+                {
+                    modifiedComponents.Add(component);
+
+                    // Only if the component is modified do we need to check for deleted nested components.
+                    foreach (var deletedNestedComponent in await component.GetDeletedNestedComponentsSinceAsync(previousComponent))
+                        deletedComponents.Add(deletedNestedComponent);
+                }
+            }
+
+            return new PackageDiff(addedComponents.ToArray(), modifiedComponents, deletedComponents);
         }
 
         public async Task<IEnumerable<Component>> GetComponentsAsync()
@@ -121,7 +171,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
                 result.AddRange(componentsQuery);
             }
 
-            return result;
+            return result.ToArray();
         }
 
         public async Task<bool> GetComponentExistsAsync(string type, string name)
@@ -154,22 +204,14 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             return await PackageManifest.LoadAsync(mStorage, mManifestFilePath);
         }
 
-        //public async Task ImportManifestAsync(PackageManifest importManifest)
-        //{
-        //    if (await mStorage.GetExistsAsync(mManifestFilePath))
-        //        throw new InvalidOperationException("Cannot import package manifest because one already exists in this package.");
-        //    if (importManifest.Name != Name)
-        //        throw new InvalidOperationException($"Cannot import package manifest because it is for a different package name ({importManifest.Name}) than this package ({Name}).");
-
-        //    await importManifest.SaveAsync(mStorage, mManifestFilePath);
-        //}
-
-        public async Task<PackageManifest> WriteManifestAsync(double defaultApiVersion)
+        public async Task WriteManifestAsync(double? defaultApiVersion)
         {
+            var components = await GetComponentsAsync();
+
             var manifest = await ReadManifestAsync() ?? new PackageManifest(Name, defaultApiVersion);
 
             manifest.Components.Clear();
-            foreach (var component in await GetComponentsAsync())
+            foreach (var component in components)
             {
                 manifest.Components.Add((component.Type, component.Name));
                 foreach (var nestedComponent in await component.GetNestedComponentsAsync())
@@ -177,12 +219,11 @@ namespace IDeliverable.ForceClient.Metadata.Archives
             }
 
             await manifest.SaveAsync(mStorage, mManifestFilePath);
-
-            return manifest;
         }
 
         public Task DeleteAsync()
         {
+            // TODO: Implement Package.DeleteAsync()
             throw new NotImplementedException();
         }
     }

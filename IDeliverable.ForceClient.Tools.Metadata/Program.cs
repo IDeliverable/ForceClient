@@ -55,20 +55,21 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 Console.WriteLine("Describing metadata...");
                 var metadataDescription = await client.DescribeAsync();
 
-                Console.WriteLine("Loading source archive...");
-                var storage1 = new DirectoryArchiveStorage(@"C:\Temp\Metadata", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                Console.WriteLine("Loading previous archive...");
+                var storage1 = new DirectoryArchiveStorage(@"C:\Temp\Delta\PreviousArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
                 var archive1 = await Archive.LoadAsync(storage1, metadataDescription);
 
-                Console.WriteLine("Loading target archive...");
-                var storage2 = new DirectoryArchiveStorage(@"C:\Temp\MultiPackageArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                Console.WriteLine("Loading current archive...");
+                var storage2 = new DirectoryArchiveStorage(@"C:\Temp\Delta\CurrentArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
                 var archive2 = await Archive.LoadAsync(storage2, metadataDescription);
 
-                Console.WriteLine("Merging source inte target...");
-                await archive2.MergeFromAsync(archive1);
-
-                Console.WriteLine("Writing package manifests in target archive...");
-                foreach (var package in await archive2.GetPackagesAsync())
-                    await package.WriteManifestAsync(metadataRules.MetadataApiVersion);
+                Console.WriteLine("Creating delta archive...");
+                if (Directory.Exists(@"C:\Temp\Delta\DeltaArchive"))
+                    Directory.Delete(@"C:\Temp\Delta\DeltaArchive", recursive: true);
+                Directory.CreateDirectory(@"C:\Temp\Delta\DeltaArchive");
+                var storage3 = new DirectoryArchiveStorage(@"C:\Temp\Delta\DeltaArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                var archive3 = new Archive(storage3, metadataDescription, isSinglePackage: false);
+                await archive2.WriteDeltaSinceAsync(archive1, archive3);
 
                 //var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
                 //await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
