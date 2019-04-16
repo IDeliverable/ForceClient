@@ -1,17 +1,15 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Archives;
 using IDeliverable.ForceClient.Metadata.Archives.Storage;
 using IDeliverable.ForceClient.Metadata.Client;
-using IDeliverable.ForceClient.Metadata.Retrieve;
+using IDeliverable.ForceClient.Metadata.Processes.Retrieve;
 using IDeliverable.ForceClient.Tools.Metadata.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
@@ -33,6 +31,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 new ServiceCollection()
                     .AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true))
                     .AddMetadataServices()
+                    .AddMetadataProcesses()
                     .BuildServiceProvider();
 
             // TODO: Figure out how to do this without a client secret!
@@ -40,9 +39,9 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             var clientSecret = "2763444084747273086";
 
             var orgAccessProvider = new BrowserOrgAccessProvider(OrgType.Production, clientId, clientSecret);
-            var retrieveWorkerFactory = services.GetRequiredService<IRetrieveWorkerFactory>();
+            var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();
             var metadataRules = services.GetRequiredService<MetadataRules>();
-            var retrieveWorker = retrieveWorkerFactory.CreateRetrieveWorker(orgAccessProvider);
+            var retrieveProcess = retrieveProcessFactory.CreateRetrieveProcess(orgAccessProvider);
 
             var client = services.GetRequiredService<IMetadataClientFactory>().CreateClient(orgAccessProvider);
 

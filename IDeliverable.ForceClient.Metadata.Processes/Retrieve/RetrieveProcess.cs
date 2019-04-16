@@ -9,11 +9,11 @@ using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using Microsoft.Extensions.Logging;
 
-namespace IDeliverable.ForceClient.Metadata.Retrieve
+namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 {
-    public class RetrieveWorker : IRetrieveWorker
+    public class RetrieveProcess : IRetrieveProcess
     {
-        public RetrieveWorker(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveWorker> logger)
+        public RetrieveProcess(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
         {
             mClient = client;
             mMetadataRules = metadataRules;

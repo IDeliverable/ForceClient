@@ -1,4 +1,4 @@
-namespace IDeliverable.ForceClient.Metadata.Deploy
+namespace IDeliverable.ForceClient.Metadata.Client
 {
     public enum DeployStatus
     {

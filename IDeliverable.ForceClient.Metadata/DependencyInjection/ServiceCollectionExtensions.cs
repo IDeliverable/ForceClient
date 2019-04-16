@@ -1,7 +1,5 @@
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Client;
-using IDeliverable.ForceClient.Metadata.Deploy;
-using IDeliverable.ForceClient.Metadata.Retrieve;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -12,9 +10,7 @@ namespace Microsoft.Extensions.DependencyInjection
             return
                 services
                     .AddSingleton<MetadataRules>()
-                    .AddSingleton<IMetadataClientFactory, MetadataClientFactory>()
-                    .AddSingleton<IDeployWorkerFactory, DeployWorkerFactory>()
-                    .AddSingleton<IRetrieveWorkerFactory, RetrieveWorkerFactory>();
+                    .AddSingleton<IMetadataClientFactory, MetadataClientFactory>();
         }
     }
 }

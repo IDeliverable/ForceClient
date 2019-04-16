@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO.Compression;
 using System.Threading.Tasks;
 
-namespace IDeliverable.ForceClient.Metadata.Retrieve
+namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 {
-	public interface IRetrieveWorker
+	public interface IRetrieveProcess
 	{
 		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<string> types);
 		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries);

@@ -1,21 +1,21 @@
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata.Client;
 
-namespace IDeliverable.ForceClient.Metadata.Deploy
+namespace IDeliverable.ForceClient.Metadata.Processes.Deploy
 {
-    public class DeployWorkerFactory : IDeployWorkerFactory
+    public class DeployProcessFactory : IDeployProcessFactory
     {
-        public DeployWorkerFactory(IMetadataClientFactory metadataClientFactory)
+        public DeployProcessFactory(IMetadataClientFactory metadataClientFactory)
         {
             mMetadataClientFactory = metadataClientFactory;
         }
 
         private readonly IMetadataClientFactory mMetadataClientFactory;
 
-        public IDeployWorker CreateDeployWorker(IOrgAccessProvider orgAccessProvider)
+        public IDeployProcess CreateDeployProcess(IOrgAccessProvider orgAccessProvider)
         {
             var client = mMetadataClientFactory.CreateClient(orgAccessProvider);
-            var worker = new DeployWorker(client);
+            var worker = new DeployProcess(client);
             return worker;
         }
     }

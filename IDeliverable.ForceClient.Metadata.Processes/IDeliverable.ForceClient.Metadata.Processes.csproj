@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj" />
+    <ProjectReference Include="..\IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj" />
+    <ProjectReference Include="..\IDeliverable.ForceClient.Metadata\IDeliverable.ForceClient.Metadata.csproj" />
+  </ItemGroup>
+
+</Project>

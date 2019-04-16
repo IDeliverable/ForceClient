@@ -6,7 +6,6 @@ using System.ServiceModel;
 using System.Threading.Tasks;
 using AutoMapper;
 using IDeliverable.ForceClient.Core;
-using IDeliverable.ForceClient.Metadata.Deploy;
 using IDeliverable.ForceClient.Metadata.Describe;
 using IDeliverable.ForceClient.Metadata.ForceMetadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;
@@ -184,7 +183,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             return response.result.id;
         }
 
-        public async Task<Retrieve.RetrieveResult> GetRetrieveResultAsync(string operationId)
+        public async Task<RetrieveResult> GetRetrieveResultAsync(string operationId)
         {
             await EnsureClientHasEndpointAddressAsync();
             var header = await GetAuthenticationHeaderAsync();
@@ -194,8 +193,8 @@ namespace IDeliverable.ForceClient.Metadata.Client
             if (result.status == ForceMetadata.RetrieveStatus.Failed)
                 throw new RetrieveException(result.errorMessage, result.errorStatusCode.ToString());
 
-            return new Retrieve.RetrieveResult(
-                mMapper.Map<ForceMetadata.RetrieveStatus, Retrieve.RetrieveStatus>(result.status),
+            return new RetrieveResult(
+                mMapper.Map<ForceMetadata.RetrieveStatus, RetrieveStatus>(result.status),
                 result.zipFile);
         }
 
@@ -210,7 +209,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             return response.result.id;
         }
 
-        public async Task<Deploy.DeployResult> GetDeployResultAsync(string operationId)
+        public async Task<DeployResult> GetDeployResultAsync(string operationId)
         {
             await EnsureClientHasEndpointAddressAsync();
             var header = await GetAuthenticationHeaderAsync();
@@ -222,8 +221,8 @@ namespace IDeliverable.ForceClient.Metadata.Client
             if (result.status == ForceMetadata.DeployStatus.Failed)
                 throw new DeployException(result.errorMessage, result.errorStatusCode.ToString());
 
-            return new Deploy.DeployResult(
-                mMapper.Map<ForceMetadata.DeployStatus, Deploy.DeployStatus>(result.status),
+            return new DeployResult(
+                mMapper.Map<ForceMetadata.DeployStatus, DeployStatus>(result.status),
                 result.stateDetail,
                 result.numberComponentsTotal,
                 result.numberComponentsDeployed,

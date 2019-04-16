@@ -4,11 +4,11 @@ using IDeliverable.ForceClient.Metadata.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace IDeliverable.ForceClient.Metadata.Retrieve
+namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 {
-    public class RetrieveWorkerFactory : IRetrieveWorkerFactory
+    public class RetrieveProcessFactory : IRetrieveProcessFactory
     {
-        public RetrieveWorkerFactory(IMetadataClientFactory metadataClientFactory, MetadataRules metadataRules, IServiceProvider serviceProvider)
+        public RetrieveProcessFactory(IMetadataClientFactory metadataClientFactory, MetadataRules metadataRules, IServiceProvider serviceProvider)
         {
             mMetadataClientFactory = metadataClientFactory;
             mMetadataRules = metadataRules;
@@ -19,11 +19,11 @@ namespace IDeliverable.ForceClient.Metadata.Retrieve
         private readonly MetadataRules mMetadataRules;
         private readonly IServiceProvider mService;
 
-        public IRetrieveWorker CreateRetrieveWorker(IOrgAccessProvider orgAccessProvider)
+        public IRetrieveProcess CreateRetrieveProcess(IOrgAccessProvider orgAccessProvider)
         {
             var client = mMetadataClientFactory.CreateClient(orgAccessProvider);
-            var logger = mService.GetRequiredService<ILogger<RetrieveWorker>>();
-            var worker = new RetrieveWorker(client, mMetadataRules, logger);
+            var logger = mService.GetRequiredService<ILogger<RetrieveProcess>>();
+            var worker = new RetrieveProcess(client, mMetadataRules, logger);
             return worker;
         }
     }

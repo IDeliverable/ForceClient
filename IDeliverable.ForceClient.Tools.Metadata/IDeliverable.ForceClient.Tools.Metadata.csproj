@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\IDeliverable.ForceClient.Core\IDeliverable.ForceClient.Core.csproj" />
     <ProjectReference Include="..\IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj" />
+    <ProjectReference Include="..\IDeliverable.ForceClient.Metadata.Processes\IDeliverable.ForceClient.Metadata.Processes.csproj" />
     <ProjectReference Include="..\IDeliverable.ForceClient.Metadata\IDeliverable.ForceClient.Metadata.csproj" />
   </ItemGroup>
 

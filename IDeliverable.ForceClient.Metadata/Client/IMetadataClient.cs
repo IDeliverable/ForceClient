@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using IDeliverable.ForceClient.Metadata.Deploy;
 using IDeliverable.ForceClient.Metadata.Describe;
-using IDeliverable.ForceClient.Metadata.Retrieve;
 
 namespace IDeliverable.ForceClient.Metadata.Client
 {

@@ -3,11 +3,11 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Metadata.Client;
 
-namespace IDeliverable.ForceClient.Metadata.Deploy
+namespace IDeliverable.ForceClient.Metadata.Processes.Deploy
 {
-    public class DeployWorker : IDeployWorker
+    public class DeployProcess : IDeployProcess
     {
-        public DeployWorker(IMetadataClient client)
+        public DeployProcess(IMetadataClient client)
         {
             mClient = client;
         }

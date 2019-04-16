@@ -1,6 +1,6 @@
 using System;
 
-namespace IDeliverable.ForceClient.Metadata.Retrieve
+namespace IDeliverable.ForceClient.Metadata.Client
 {
     public class RetrieveException : Exception
     {
