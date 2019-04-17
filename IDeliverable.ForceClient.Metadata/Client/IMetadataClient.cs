@@ -8,8 +8,8 @@ namespace IDeliverable.ForceClient.Metadata.Client
     {
         Task<MetadataDescription> DescribeAsync();
         Task<IEnumerable<MetadataFolderInfo>> ListFoldersAsync(IEnumerable<string> types);
-        Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries, bool includePackages = false);
-        Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveQuery> items);
+        Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries, bool includePackages);
+        Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> items, IEnumerable<string> packageNames);
         Task<RetrieveResult> GetRetrieveResultAsync(string operationId);
         Task<string> StartDeployAsync(byte[] zipFile);
         Task<DeployResult> GetDeployResultAsync(string operationId);

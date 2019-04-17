@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
 using IDeliverable.ForceClient.Metadata;
@@ -54,21 +55,21 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 Console.WriteLine("Describing metadata...");
                 var metadataDescription = await client.DescribeAsync();
 
-                Console.WriteLine("Loading previous archive...");
-                var storage1 = new DirectoryArchiveStorage(@"C:\Temp\Delta\PreviousArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
-                var archive1 = await Archive.LoadAsync(storage1, metadataDescription);
+                //Console.WriteLine("Loading previous archive...");
+                //var storage1 = new DirectoryArchiveStorage(@"C:\Temp\Delta\PreviousArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                //var archive1 = await Archive.LoadAsync(storage1, metadataDescription);
 
-                Console.WriteLine("Loading current archive...");
-                var storage2 = new DirectoryArchiveStorage(@"C:\Temp\Delta\CurrentArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
-                var archive2 = await Archive.LoadAsync(storage2, metadataDescription);
+                //Console.WriteLine("Loading current archive...");
+                //var storage2 = new DirectoryArchiveStorage(@"C:\Temp\Delta\CurrentArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                //var archive2 = await Archive.LoadAsync(storage2, metadataDescription);
 
-                Console.WriteLine("Creating delta archive...");
-                if (Directory.Exists(@"C:\Temp\Delta\DeltaArchive"))
-                    Directory.Delete(@"C:\Temp\Delta\DeltaArchive", recursive: true);
-                Directory.CreateDirectory(@"C:\Temp\Delta\DeltaArchive");
-                var storage3 = new DirectoryArchiveStorage(@"C:\Temp\Delta\DeltaArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
-                var archive3 = new Archive(storage3, metadataDescription, isSinglePackage: false);
-                await archive2.WriteDeltaSinceAsync(archive1, archive3);
+                //Console.WriteLine("Creating delta archive...");
+                //if (Directory.Exists(@"C:\Temp\Delta\DeltaArchive"))
+                //    Directory.Delete(@"C:\Temp\Delta\DeltaArchive", recursive: true);
+                //Directory.CreateDirectory(@"C:\Temp\Delta\DeltaArchive");
+                //var storage3 = new DirectoryArchiveStorage(@"C:\Temp\Delta\DeltaArchive", services.GetService<ILogger<DirectoryArchiveStorage>>());
+                //var archive3 = new Archive(storage3, metadataDescription, isSinglePackage: false);
+                //await archive2.WriteDeltaSinceAsync(archive1, archive3);
 
                 //var metadataDescriptionJson = JsonConvert.SerializeObject(metadataDescription, jsonSettings);
                 //await File.WriteAllTextAsync(@"C:\Temp\MetadataDescription.json", metadataDescriptionJson);
@@ -83,12 +84,21 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 //var fieldDescriptionJson = JsonConvert.SerializeObject(fieldDescription, jsonSettings);
                 //await File.WriteAllTextAsync(@"C:\Temp\CustomFieldDescription.json", fieldDescriptionJson);
 
-                //Console.WriteLine("Listing metadata items...");
-                //var metadataTypeNames = metadataDescription.Types.Keys;
-                //var itemInfoList = await retrieveWorker.ListItemsAsync(metadataTypeNames);
-                //Console.WriteLine($"{itemInfoList.Count()} items found.");
-                //var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
-                //await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
+                Console.WriteLine("Listing metadata items...");
+                var metadataTypeNames = metadataDescription.Types.Keys;
+                var itemInfoList = await retrieveProcess.ListItemsOfTypesAsync(metadataTypeNames, includePackages: true);
+                Console.WriteLine($"{itemInfoList.Count()} metadata items found.");
+                var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
+                await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
+
+                Console.WriteLine("Packages found:");
+                var packageNames =
+                    itemInfoList
+                        .Where(x => x.Type == "InstalledPackage")
+                        .Select(x => x.Name)
+                        .Distinct();
+                foreach (var packageName in packageNames)
+                    Console.WriteLine($"  {packageName}");
 
                 //var operationId = await client.StartRetrieveAsync(new[] { new MetadataRetrieveQuery("CustomObject", "*") });
                 //RetrieveResult result;
@@ -127,6 +137,9 @@ namespace IDeliverable.ForceClient.Tools.Metadata
                 Console.WriteLine("Error while listing metadata.");
                 Console.WriteLine(ex.Message);
             }
+
+            Console.WriteLine("Press any key to continue...");
+            Console.ReadKey();
         }
     }
 }

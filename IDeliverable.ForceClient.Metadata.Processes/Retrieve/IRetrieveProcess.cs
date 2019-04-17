@@ -7,9 +7,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 {
 	public interface IRetrieveProcess
 	{
-		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<string> types);
-		Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries);
-		Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
-		Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, string outputDirectoryPath);
+		Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(IEnumerable<string> types, bool includePackages);
+		Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync);
 	}
 }

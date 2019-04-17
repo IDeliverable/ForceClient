@@ -24,7 +24,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
         private readonly MetadataRules mMetadataRules;
         private readonly ILogger mLogger;
 
-        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<string> types)
+        public async Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(IEnumerable<string> types, bool includePackages)
         {
             var metadataDescription = await mClient.DescribeAsync();
 
@@ -39,7 +39,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
             var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
             var createItemQueries = new TransformBlock<string, MetadataListQuery>(type => new MetadataListQuery(type));
             var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries), parallelismOptions);
+            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries, includePackages), parallelismOptions);
             var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
 
             source.LinkTo(batchFolderTypes, linkOptions, type => metadataDescription.Types[type].IsFolderized);
@@ -66,32 +66,9 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
             return result;
         }
 
-        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries)
+        public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
         {
-            return await mClient.ListItemsAsync(queries);
-        }
-
-        public async Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, string outputDirectoryPath)
-        {
-            Directory.CreateDirectory(outputDirectoryPath);
-
-            async Task entryProcessorAsync(ZipArchiveEntry entry)
-            {
-                var fullPath = Path.Combine(outputDirectoryPath, entry.FullName);
-
-                var directoryPath = Path.GetDirectoryName(fullPath);
-                Directory.CreateDirectory(directoryPath);
-
-                using (Stream fileStream = File.Create(fullPath), entryStream = entry.Open())
-                    await entryStream.CopyToAsync(fileStream);
-            }
-
-            return await RetrieveAsync(itemReferences, entryProcessorAsync);
-        }
-
-        public async Task<IReadOnlyDictionary<MetadataRetrieveQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
-        {
-            var result = new Dictionary<MetadataRetrieveQuery, bool>();
+            var result = new Dictionary<MetadataRetrieveItemQuery, bool>();
 
             if (!itemReferences.Any())
                 return result;
@@ -116,7 +93,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 
                 try
                 {
-                    var operationId = await mClient.StartRetrieveAsync(itemReferencePartition);
+                    var operationId = await mClient.StartRetrieveAsync(itemReferencePartition, packageNames: null);
 
                     while (!(retrieveResult = await mClient.GetRetrieveResultAsync(operationId)).IsDone)
                         await Task.Delay(TimeSpan.FromSeconds(3));

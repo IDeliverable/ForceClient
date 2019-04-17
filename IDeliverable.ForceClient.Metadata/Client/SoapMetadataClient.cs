@@ -86,9 +86,6 @@ namespace IDeliverable.ForceClient.Metadata.Client
             if (types.Count() > mMetadataRules.MaxListMetadataQueriesPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(types), $"The number of metadata types ({types.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxListMetadataQueriesPerRequest}).");
 
-            //if (types.Any(type => !mMetadataRules.GetIsFolderized(type)))
-            //    throw new ArgumentException("One or more of the specified metadata types is not a folderized type.", nameof(types));
-
             var folderQueries =
                 types
                     .Select(type => new ListMetadataQuery() { type = $"{type}{folderSuffix}" })
@@ -117,13 +114,10 @@ namespace IDeliverable.ForceClient.Metadata.Client
             }
         }
 
-        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries, bool includePackages = false)
+        public async Task<IEnumerable<MetadataItemInfo>> ListItemsAsync(IEnumerable<MetadataListQuery> queries, bool includePackages)
         {
             if (queries.Count() > mMetadataRules.MaxListMetadataQueriesPerRequest)
                 throw new ArgumentOutOfRangeException(nameof(queries), $"The number of metadata queries ({queries.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxListMetadataQueriesPerRequest}).");
-
-            //if (queries.Any(query => mMetadataRules.GetIsFolderized(query.Type) && String.IsNullOrEmpty(query.InFolder)))
-            //    throw new ArgumentException($"One or more of the specified metadata types is a folderized type but no folder is specified; use {nameof(ListFoldersAsync)} first to obtain the available folders.", nameof(queries));
 
             var itemsQueries =
                 queries
@@ -163,18 +157,26 @@ namespace IDeliverable.ForceClient.Metadata.Client
             }
         }
 
-        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveQuery> items)
+        public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> unpackedItemQueries, IEnumerable<string> packageNames)
         {
-            if (items.Count() > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
-                throw new ArgumentOutOfRangeException(nameof(items), $"The number of metadata items to retrieve ({items.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxRetrieveMetadataItemsPerRequest}).");
+            if (unpackedItemQueries.Count() > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
+                throw new ArgumentOutOfRangeException(nameof(unpackedItemQueries), $"The number of metadata items to retrieve ({unpackedItemQueries.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxRetrieveMetadataItemsPerRequest}).");
 
             var typeMembersQuery =
-                from itemReference in items
-                group itemReference.Name by itemReference.Type into itemTypeGroup
-                select new PackageTypeMembers() { name = itemTypeGroup.Key.ToString(), members = itemTypeGroup.ToArray() };
+                from itemQuery in unpackedItemQueries
+                group itemQuery.Name by itemQuery.Type into itemTypeGroup
+                select new PackageTypeMembers()
+                {
+                    name = itemTypeGroup.Key.ToString(),
+                    members = itemTypeGroup.ToArray()
+                };
 
-            var package = new Package() { types = typeMembersQuery.ToArray() };
-            var request = new RetrieveRequest() { unpackaged = package, singlePackage = false };
+            var request = new RetrieveRequest()
+            {
+                unpackaged = new Package { types = typeMembersQuery.ToArray() },
+                packageNames = packageNames?.ToArray(),
+                singlePackage = false
+            };
 
             await EnsureClientHasEndpointAddressAsync();
             var header = await GetAuthenticationHeaderAsync();
