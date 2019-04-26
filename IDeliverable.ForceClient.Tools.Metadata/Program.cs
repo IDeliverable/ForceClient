@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
+using Serilog.Events;
 
 namespace IDeliverable.ForceClient.Tools.Metadata
 {
@@ -24,7 +25,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             Log.Logger =
                 new LoggerConfiguration()
                     .MinimumLevel.Information()
-                    //.MinimumLevel.Override("IDeliverable.ForceClient.Metadata.Client", LogEventLevel.Fatal)
+                    .MinimumLevel.Override(typeof(BrowserOrgAccessProvider).FullName, LogEventLevel.Debug)
                     .WriteTo.Console()
                     .CreateLogger();
 
@@ -39,7 +40,9 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE";
             var clientSecret = "2763444084747273086";
 
-            var orgAccessProvider = new BrowserOrgAccessProvider(OrgType.Production, clientId, clientSecret);
+            var tokenStore = new IsolatedStorageTokenStore();
+            var orgAccessLogger = services.GetRequiredService<ILogger<BrowserOrgAccessProvider>>();
+            var orgAccessProvider = new BrowserOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId, clientSecret);
             var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();
             var metadataRules = services.GetRequiredService<MetadataRules>();
             var retrieveProcess = retrieveProcessFactory.CreateRetrieveProcess(orgAccessProvider);
