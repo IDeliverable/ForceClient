@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace IDeliverable.ForceClient.Core
+namespace IDeliverable.ForceClient.Core.Tokens
 {
     public interface ITokenStore
     {

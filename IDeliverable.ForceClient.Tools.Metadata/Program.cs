@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.Tokens;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Archives;
 using IDeliverable.ForceClient.Metadata.Archives.Storage;

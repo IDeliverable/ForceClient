@@ -2,6 +2,7 @@ namespace IDeliverable.ForceClient.Metadata
 {
     public class MetadataRules
     {
+        public readonly string MetadataApiName = "metadata";
         public readonly int MetadataApiVersion = 43;
 
         // Limits documented here:

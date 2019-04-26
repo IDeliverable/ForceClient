@@ -4,11 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.IsolatedStorage;
 using System.Threading.Tasks;
-using IDeliverable.ForceClient.Core;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
 
-namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
+namespace IDeliverable.ForceClient.Core.Tokens
 {
     public class IsolatedStorageTokenStore : ITokenStore
     {

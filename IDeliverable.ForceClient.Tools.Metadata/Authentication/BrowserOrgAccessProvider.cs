@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.Tokens;
 using IdentityModel.OidcClient;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -49,8 +50,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
         private readonly string mAuthority;
         private readonly OidcClientOptions mOidcOptions;
 
-        // TODO: Extend with first-class support for all the URLs, not just metadata.
-        public async Task<string> GetSoapUrlAsync()
+        public async Task<string> GetSoapApiUrlAsync(string apiName)
         {
             var urls = await mTokenStore.LoadUrlsAsync(mOrgType, mUsername);
             if (urls == null)
@@ -67,8 +67,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
                 urls = tokenData.Urls;
             }
 
-            var metadataUrl = urls["metadata"].ToString();
-            return metadataUrl;
+            return urls[apiName];
         }
 
         public async Task<string> GetAccessTokenAsync()

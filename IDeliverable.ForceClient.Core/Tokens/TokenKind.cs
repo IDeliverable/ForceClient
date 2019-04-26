@@ -1,6 +1,6 @@
 using System;
 
-namespace IDeliverable.ForceClient.Core
+namespace IDeliverable.ForceClient.Core.Tokens
 {
     public enum TokenKind
     {

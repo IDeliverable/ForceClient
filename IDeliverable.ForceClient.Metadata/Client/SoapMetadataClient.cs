@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.ServiceModel;
+using System.ServiceModel.Description;
 using System.Threading.Tasks;
 using AutoMapper;
 using IDeliverable.ForceClient.Core;
@@ -23,7 +23,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             mLogger = logger;
 
             mClient = new MetadataPortTypeClient();
-            mClient.Endpoint.Address = null;
+            mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
             mMapper = new MapperConfiguration(cfg => { }).CreateMapper();
             mRetryPolicy = Policy.Handle<TimeoutException>().WaitAndRetryAsync(3, x => TimeSpan.FromSeconds(3));
         }
@@ -39,9 +39,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
         {
             try
             {
-                await EnsureClientHasEndpointAddressAsync();
-                var header = await GetAuthenticationHeaderAsync();
-                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(header, null, mMetadataRules.MetadataApiVersion))).result;
+                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(null, null, mMetadataRules.MetadataApiVersion))).result;
 
                 var types = new Dictionary<string, MetadataTypeDescription>();
 
@@ -93,9 +91,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
             try
             {
-                await EnsureClientHasEndpointAddressAsync();
-                var header = await GetAuthenticationHeaderAsync();
-                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(header, null, folderQueries, mMetadataRules.MetadataApiVersion));
+                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, folderQueries, mMetadataRules.MetadataApiVersion));
 
                 var folderInfoQuery =
                     from fileProperties in response.result
@@ -126,9 +122,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
             try
             {
-                await EnsureClientHasEndpointAddressAsync();
-                var header = await GetAuthenticationHeaderAsync();
-                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(header, null, itemsQueries, mMetadataRules.MetadataApiVersion));
+                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, itemsQueries, mMetadataRules.MetadataApiVersion));
 
                 // Result can sometimes be null for empty folders.
                 if (response?.result == null)
@@ -178,18 +172,14 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 singlePackage = false
             };
 
-            await EnsureClientHasEndpointAddressAsync();
-            var header = await GetAuthenticationHeaderAsync();
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.retrieveAsync(header, null, request));
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.retrieveAsync(null, null, request));
 
             return response.result.id;
         }
 
         public async Task<RetrieveResult> GetRetrieveResultAsync(string operationId)
         {
-            await EnsureClientHasEndpointAddressAsync();
-            var header = await GetAuthenticationHeaderAsync();
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkRetrieveStatusAsync(header, null, operationId, includeZip: true));
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkRetrieveStatusAsync(null, null, operationId, includeZip: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.RetrieveStatus.Failed)
@@ -202,20 +192,16 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
         public async Task<string> StartDeployAsync(byte[] zipFile)
         {
-            await EnsureClientHasEndpointAddressAsync();
-            var header = await GetAuthenticationHeaderAsync();
             // TODO: Expose DeployOptions to API clients.
             var options = new DeployOptions() { checkOnly = false, rollbackOnError = true };
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.deployAsync(header, null, null, zipFile, options));
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.deployAsync(null, null, null, zipFile, options));
 
             return response.result.id;
         }
 
         public async Task<DeployResult> GetDeployResultAsync(string operationId)
         {
-            await EnsureClientHasEndpointAddressAsync();
-            var header = await GetAuthenticationHeaderAsync();
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkDeployStatusAsync(header, null, operationId, includeDetails: true));
+            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkDeployStatusAsync(null, null, operationId, includeDetails: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.DeployStatus.Canceled)
@@ -238,9 +224,8 @@ namespace IDeliverable.ForceClient.Metadata.Client
         {
             try
             {
-                var header = await GetAuthenticationHeaderAsync();
                 var fullType = "{http://soap.sforce.com/2006/04/metadata}" + type;
-                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeValueTypeAsync(header, fullType))).result;
+                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeValueTypeAsync(null, fullType))).result;
 
                 return response;
             }
@@ -251,20 +236,20 @@ namespace IDeliverable.ForceClient.Metadata.Client
             }
         }
 
-        private async Task EnsureClientHasEndpointAddressAsync()
-        {
-            if (mClient.Endpoint.Address != null)
-                return;
-            var soapUrl = await mOrgAccessProvider.GetSoapUrlAsync();
-            var endpointAddress = new EndpointAddress(new Uri(soapUrl.Replace("{version}", mMetadataRules.MetadataApiVersion.ToString(CultureInfo.InvariantCulture))));
-            mClient.Endpoint.Address = endpointAddress;
-        }
+        //private async Task EnsureClientHasEndpointAddressAsync()
+        //{
+        //    if (mClient.Endpoint.Address != null)
+        //        return;
+        //    var soapUrl = await mOrgAccessProvider.GetSoapUrlAsync();
+        //    var endpointAddress = new EndpointAddress(new Uri(soapUrl.Replace("{version}", mMetadataRules.MetadataApiVersion.ToString(CultureInfo.InvariantCulture))));
+        //    mClient.Endpoint.Address = endpointAddress;
+        //}
 
-        private async Task<SessionHeader> GetAuthenticationHeaderAsync()
-        {
-            var accessToken = await mOrgAccessProvider.GetAccessTokenAsync();
-            var header = new SessionHeader() { sessionId = accessToken };
-            return header;
-        }
+        //private async Task<SessionHeader> GetAuthenticationHeaderAsync()
+        //{
+        //    var accessToken = await mOrgAccessProvider.GetAccessTokenAsync();
+        //    var header = new SessionHeader() { sessionId = accessToken };
+        //    return header;
+        //}
     }
 }
