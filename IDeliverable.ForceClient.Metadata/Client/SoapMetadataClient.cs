@@ -5,7 +5,7 @@ using System.ServiceModel;
 using System.ServiceModel.Description;
 using System.Threading.Tasks;
 using AutoMapper;
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Metadata.Describe;
 using IDeliverable.ForceClient.Metadata.ForceMetadata;
 using IDeliverable.ForceClient.Metadata.Retrieve;

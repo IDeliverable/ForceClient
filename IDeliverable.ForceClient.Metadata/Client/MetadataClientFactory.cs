@@ -1,5 +1,5 @@
 using System;
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

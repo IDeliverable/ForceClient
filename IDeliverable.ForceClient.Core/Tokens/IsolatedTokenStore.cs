@@ -4,70 +4,56 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.IsolatedStorage;
 using System.Threading.Tasks;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
 
 namespace IDeliverable.ForceClient.Core.Tokens
 {
-    public class IsolatedStorageTokenStore : ITokenStore
+    public class IsolatedTokenStore : ITokenStore
     {
-        public IsolatedStorageTokenStore()
+        public IsolatedTokenStore()
         {
             mStore = IsolatedStorageFile.GetUserStoreForApplication();
-            mFileLocks = new ConcurrentDictionary<string, AsyncLock>();
+            mFileLocks = new ConcurrentDictionary<string, AsyncReaderWriterLock>();
         }
 
         private readonly IsolatedStorageFile mStore;
-        private readonly ConcurrentDictionary<string, AsyncLock> mFileLocks;
+        private readonly ConcurrentDictionary<string, AsyncReaderWriterLock> mFileLocks;
 
         public async Task<string> LoadTokenAsync(TokenKind kind, OrgType orgType, string username)
         {
             var fileName = GetTokenFileName(kind, orgType, username);
 
-            if (!mStore.FileExists(fileName))
-                return null;
-
-            string tokenInfoJson;
-            using (var stream = mStore.OpenFile(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+            using (await fileLock.ReaderLockAsync())
             {
-                using (var reader = new StreamReader(stream))
+                if (!mStore.FileExists(fileName))
+                    return null;
+
+                using (var stream = mStore.OpenFile(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    tokenInfoJson = await reader.ReadToEndAsync();
+                    using (var reader = new StreamReader(stream))
+                    {
+                        var token = await reader.ReadToEndAsync();
+                        return token;
+                    }
                 }
             }
-
-            var tokenInfo = JsonConvert.DeserializeObject<TokenInfo>(tokenInfoJson);
-
-            if (tokenInfo.ExpiresAtUtc.HasValue && tokenInfo.ExpiresAtUtc.Value < DateTime.UtcNow)
-            {
-                await DeleteTokenAsync(kind, orgType, username);
-                return null;
-            }
-
-            return tokenInfo.Token;
         }
 
-        public async Task SaveTokenAsync(TokenKind kind, OrgType orgType, string username, string token, DateTime? expiresAtUtc)
+        public async Task SaveTokenAsync(TokenKind kind, OrgType orgType, string username, string token)
         {
             var fileName = GetTokenFileName(kind, orgType, username);
 
-            if (expiresAtUtc.HasValue && expiresAtUtc.Value < DateTime.UtcNow)
-            {
-                await DeleteTokenAsync(kind, orgType, username);
-                return;
-            }
-
-            var tokenInfo = new TokenInfo(token, expiresAtUtc);
-            var tokenInfoJson = JsonConvert.SerializeObject(tokenInfo);
-
-            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncLock());
-            using (await fileLock.LockAsync())
+            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+            using (await fileLock.WriterLockAsync())
             {
                 using (var stream = mStore.OpenFile(fileName, FileMode.Create))
                 {
                     using (var writer = new StreamWriter(stream))
                     {
-                        await writer.WriteAsync(tokenInfoJson);
+                        await writer.WriteAsync(token);
                     }
                 }
             }
@@ -77,8 +63,8 @@ namespace IDeliverable.ForceClient.Core.Tokens
         {
             var fileName = GetTokenFileName(kind, orgType, username);
 
-            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncLock());
-            using (await fileLock.LockAsync())
+            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+            using (await fileLock.WriterLockAsync())
             {
                 mStore.DeleteFile(fileName);
             }
@@ -88,15 +74,19 @@ namespace IDeliverable.ForceClient.Core.Tokens
         {
             var fileName = GetUrlsFileName(orgType, username);
 
-            if (!mStore.FileExists(fileName))
-                return null;
-
             string urlsJson;
-            using (var stream = mStore.OpenFile(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+            using (await fileLock.ReaderLockAsync())
             {
-                using (var reader = new StreamReader(stream))
+                if (!mStore.FileExists(fileName))
+                    return null;
+
+                using (var stream = mStore.OpenFile(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    urlsJson = await reader.ReadToEndAsync();
+                    using (var reader = new StreamReader(stream))
+                    {
+                        urlsJson = await reader.ReadToEndAsync();
+                    }
                 }
             }
 
@@ -111,8 +101,8 @@ namespace IDeliverable.ForceClient.Core.Tokens
 
             var urlsJson = JsonConvert.SerializeObject(urls);
 
-            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncLock());
-            using (await fileLock.LockAsync())
+            var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+            using (await fileLock.WriterLockAsync())
             {
                 using (var stream = mStore.OpenFile(fileName, FileMode.Create))
                 {
@@ -132,18 +122,6 @@ namespace IDeliverable.ForceClient.Core.Tokens
         private string GetUrlsFileName(OrgType orgType, string username)
         {
             return String.Intern($"Urls_{orgType}_{username}.json");
-        }
-
-        private class TokenInfo
-        {
-            public TokenInfo(string token, DateTime? expiresAtUtc)
-            {
-                Token = token;
-                ExpiresAtUtc = expiresAtUtc;
-            }
-
-            public string Token { get; }
-            public DateTime? ExpiresAtUtc { get; }
         }
     }
 }

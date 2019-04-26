@@ -1,4 +1,4 @@
-namespace IDeliverable.ForceClient.Core
+namespace IDeliverable.ForceClient.Core.OrgAccess
 {
     public enum OrgType
     {

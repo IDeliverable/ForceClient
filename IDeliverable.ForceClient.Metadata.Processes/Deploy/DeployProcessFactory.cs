@@ -1,4 +1,4 @@
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Processes.Deploy

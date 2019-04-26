@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace IDeliverable.ForceClient.Core
+namespace IDeliverable.ForceClient.Core.OrgAccess
 {
     public interface IOrgAccessProvider
     {

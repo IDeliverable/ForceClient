@@ -2,6 +2,7 @@ using System;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
 using System.ServiceModel.Dispatcher;
+using IDeliverable.ForceClient.Core.OrgAccess;
 
 namespace IDeliverable.ForceClient.Core.ServiceModel
 {

@@ -1,4 +1,4 @@
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 
 namespace IDeliverable.ForceClient.Metadata.Client
 {

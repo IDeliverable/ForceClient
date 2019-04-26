@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Core.Tokens;
 using IdentityModel.OidcClient;
 using Microsoft.Extensions.Logging;
@@ -89,18 +90,18 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
         {
             mLogger.LogDebug($"Acquiring access token for '{mUsername}'...");
 
-            // If we have a valid refresh token, first try to use that to acquire an access token.
+            // If we have a refresh token, first try to use that to acquire an access token.
             var refreshToken = await mTokenStore.LoadTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername);
             if (refreshToken != null)
             {
-                mLogger.LogDebug($"Valid refresh token found in store store for '{mUsername}'.");
+                mLogger.LogDebug($"Refresh token found in store store for '{mUsername}'.");
 
                 var tokenData = await RefreshAccessTokenAsync(client, refreshToken, throwOnError: false);
                 if (tokenData != null)
                     return tokenData;
             }
 
-            mLogger.LogDebug($"No valid refresh token found in store for '{mUsername}'; authenticating...");
+            mLogger.LogDebug($"Refresh token could not be used for '{mUsername}'; authenticating...");
 
             // Either we did not have any refresh token, or using it failed; perform a full interactive login flow.
             var request = new LoginRequest();
@@ -110,23 +111,17 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 
             mLogger.LogDebug($"Successfully authenticated '{mUsername}'.");
 
-            // TODO: We need to stop dealing with expiration times and implement fault handling instead.
-            var accessTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(15);
-            var refreshTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(60);
-
             var urlsJson = loginResult.User.FindFirst("urls").Value;
             var urls = JsonConvert.DeserializeObject<Dictionary<string, string>>(urlsJson);
 
-            await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, loginResult.AccessToken, accessTokenExpiresAtUtc);
-            await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, loginResult.RefreshToken, refreshTokenExpiresAtUtc);
+            await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, loginResult.AccessToken);
+            await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, loginResult.RefreshToken);
             await mTokenStore.SaveUrlsAsync(mOrgType, mUsername, urls);
 
             var result =
                 new TokenData(
                     loginResult.AccessToken,
-                    accessTokenExpiresAtUtc,
                     loginResult.RefreshToken,
-                    refreshTokenExpiresAtUtc,
                     urls);
 
             return result;
@@ -150,25 +145,13 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 
             mLogger.LogDebug($"Successfully refreshed access token for '{mUsername}'.");
 
-            // TODO: We need to stop dealing with expiration times and implement fault handling instead.
-            var accessTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(15);
-            var refreshTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(60);
-
-            //var tokenHandler = new JwtSecurityTokenHandler();
-            //var identityToken = tokenHandler.ReadJwtToken(refreshTokenResult.IdentityToken);
-            //var urlsJson = identityToken.Claims.First(claim => claim.Type == "urls").Value;
-            //var urls = JsonConvert.DeserializeObject<Dictionary<string, string>>(urlsJson);
-
-            await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, refreshTokenResult.AccessToken, accessTokenExpiresAtUtc);
-            await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, refreshTokenResult.RefreshToken, refreshTokenExpiresAtUtc);
-            //await mTokenStore.SaveUrlsAsync(mOrgType, mUsername, urls);
+            await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, refreshTokenResult.AccessToken);
+            await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, refreshTokenResult.RefreshToken);
 
             var result =
                 new TokenData(
                     refreshTokenResult.AccessToken,
-                    accessTokenExpiresAtUtc,
                     refreshTokenResult.RefreshToken,
-                    refreshTokenExpiresAtUtc,
                     urls: null);
 
             return result;
@@ -176,19 +159,15 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 
         private class TokenData
         {
-            public TokenData(string accessToken, DateTime accessTokenExpiresAtUtc, string refreshToken, DateTime? refreshTokenExpiresAtUtc, IReadOnlyDictionary<string, string> urls)
+            public TokenData(string accessToken, string refreshToken, IReadOnlyDictionary<string, string> urls)
             {
                 AccessToken = accessToken;
-                AccessTokenExpiresAtUtc = accessTokenExpiresAtUtc;
                 RefreshToken = refreshToken;
-                RefreshTokenExpiresAtUtc = refreshTokenExpiresAtUtc;
                 Urls = urls;
             }
 
             public string AccessToken { get; }
-            public DateTime AccessTokenExpiresAtUtc { get; }
             public string RefreshToken { get; }
-            public DateTime? RefreshTokenExpiresAtUtc { get; }
             public IReadOnlyDictionary<string, string> Urls { get; }
         }
     }

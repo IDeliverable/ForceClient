@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Core.Tokens;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Archives;
@@ -41,7 +41,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
             var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE";
             var clientSecret = "2763444084747273086";
 
-            var tokenStore = new IsolatedStorageTokenStore();
+            var tokenStore = new IsolatedTokenStore();
             var orgAccessLogger = services.GetRequiredService<ILogger<BrowserOrgAccessProvider>>();
             var orgAccessProvider = new BrowserOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId, clientSecret);
             var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();

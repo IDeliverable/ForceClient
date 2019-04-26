@@ -1,6 +1,6 @@
 using System;
 using System.Globalization;
-using IDeliverable.ForceClient.Core;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Core.ServiceModel;
 
 namespace System.ServiceModel.Description
