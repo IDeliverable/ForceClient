@@ -23,9 +23,34 @@ namespace IDeliverable.ForceClient.Metadata.Client
             mLogger = logger;
 
             mClient = new MetadataPortTypeClient();
-            mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
             mMapper = new MapperConfiguration(cfg => { }).CreateMapper();
-            mRetryPolicy = Policy.Handle<TimeoutException>().WaitAndRetryAsync(3, x => TimeSpan.FromSeconds(3));
+
+            mCallPolicy = Policy.WrapAsync
+            (
+                 // Automatically refresh tokens if authorization fails.
+                 Policy
+                    .Handle<FaultException>(ex => ex.Code.Name == "INVALID_SESSION_ID")
+                    .RetryAsync(
+                        retryCount: 1,
+                        onRetryAsync: async (outcome, retryNumber, context) =>
+                        {
+                            mLogger.LogInformation("Authorization with metadata API failed (API returned INVALID_SESSION_ID error); attempting to refresh access token.");
+                            _ = await mOrgAccessProvider.GetAccessTokenAsync(forceRefresh: true);
+                        }),
+
+                 // Automatically retry 3 times on timeout.
+                 Policy
+                    .Handle<TimeoutException>()
+                    .WaitAndRetryAsync(
+                        retryCount: 3,
+                        sleepDurationProvider: retryNumber =>
+                        {
+                            mLogger.LogWarning($"Timeout while calling metadata API; retrying #{retryNumber}.");
+                            return TimeSpan.FromSeconds(3);
+                        })
+            );
+
+            mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
         }
 
         private readonly IOrgAccessProvider mOrgAccessProvider;
@@ -33,13 +58,13 @@ namespace IDeliverable.ForceClient.Metadata.Client
         private readonly ILogger mLogger;
         private readonly MetadataPortTypeClient mClient;
         private readonly IMapper mMapper;
-        private readonly IAsyncPolicy mRetryPolicy;
+        private readonly IAsyncPolicy mCallPolicy;
 
         public async Task<MetadataDescription> DescribeAsync()
         {
             try
             {
-                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(null, null, mMetadataRules.MetadataApiVersion))).result;
+                var response = (await mCallPolicy.ExecuteAsync(() => mClient.describeMetadataAsync(null, null, mMetadataRules.MetadataApiVersion))).result;
 
                 var types = new Dictionary<string, MetadataTypeDescription>();
 
@@ -91,7 +116,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
             try
             {
-                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, folderQueries, mMetadataRules.MetadataApiVersion));
+                var response = await mCallPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, folderQueries, mMetadataRules.MetadataApiVersion));
 
                 var folderInfoQuery =
                     from fileProperties in response.result
@@ -122,7 +147,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 
             try
             {
-                var response = await mRetryPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, itemsQueries, mMetadataRules.MetadataApiVersion));
+                var response = await mCallPolicy.ExecuteAsync(() => mClient.listMetadataAsync(null, null, itemsQueries, mMetadataRules.MetadataApiVersion));
 
                 // Result can sometimes be null for empty folders.
                 if (response?.result == null)
@@ -172,14 +197,14 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 singlePackage = false
             };
 
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.retrieveAsync(null, null, request));
+            var response = await mCallPolicy.ExecuteAsync(() => mClient.retrieveAsync(null, null, request));
 
             return response.result.id;
         }
 
         public async Task<RetrieveResult> GetRetrieveResultAsync(string operationId)
         {
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkRetrieveStatusAsync(null, null, operationId, includeZip: true));
+            var response = await mCallPolicy.ExecuteAsync(() => mClient.checkRetrieveStatusAsync(null, null, operationId, includeZip: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.RetrieveStatus.Failed)
@@ -194,14 +219,14 @@ namespace IDeliverable.ForceClient.Metadata.Client
         {
             // TODO: Expose DeployOptions to API clients.
             var options = new DeployOptions() { checkOnly = false, rollbackOnError = true };
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.deployAsync(null, null, null, zipFile, options));
+            var response = await mCallPolicy.ExecuteAsync(() => mClient.deployAsync(null, null, null, zipFile, options));
 
             return response.result.id;
         }
 
         public async Task<DeployResult> GetDeployResultAsync(string operationId)
         {
-            var response = await mRetryPolicy.ExecuteAsync(() => mClient.checkDeployStatusAsync(null, null, operationId, includeDetails: true));
+            var response = await mCallPolicy.ExecuteAsync(() => mClient.checkDeployStatusAsync(null, null, operationId, includeDetails: true));
             var result = response.result;
 
             if (result.status == ForceMetadata.DeployStatus.Canceled)
@@ -225,7 +250,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
             try
             {
                 var fullType = "{http://soap.sforce.com/2006/04/metadata}" + type;
-                var response = (await mRetryPolicy.ExecuteAsync(() => mClient.describeValueTypeAsync(null, fullType))).result;
+                var response = (await mCallPolicy.ExecuteAsync(() => mClient.describeValueTypeAsync(null, fullType))).result;
 
                 return response;
             }
@@ -235,21 +260,5 @@ namespace IDeliverable.ForceClient.Metadata.Client
                 throw;
             }
         }
-
-        //private async Task EnsureClientHasEndpointAddressAsync()
-        //{
-        //    if (mClient.Endpoint.Address != null)
-        //        return;
-        //    var soapUrl = await mOrgAccessProvider.GetSoapUrlAsync();
-        //    var endpointAddress = new EndpointAddress(new Uri(soapUrl.Replace("{version}", mMetadataRules.MetadataApiVersion.ToString(CultureInfo.InvariantCulture))));
-        //    mClient.Endpoint.Address = endpointAddress;
-        //}
-
-        //private async Task<SessionHeader> GetAuthenticationHeaderAsync()
-        //{
-        //    var accessToken = await mOrgAccessProvider.GetAccessTokenAsync();
-        //    var header = new SessionHeader() { sessionId = accessToken };
-        //    return header;
-        //}
     }
 }

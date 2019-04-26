@@ -5,6 +5,6 @@ namespace IDeliverable.ForceClient.Core.OrgAccess
     public interface IOrgAccessProvider
     {
         Task<string> GetSoapApiUrlAsync(string apiName);
-        Task<string> GetAccessTokenAsync();
+        Task<string> GetAccessTokenAsync(bool forceRefresh);
     }
 }

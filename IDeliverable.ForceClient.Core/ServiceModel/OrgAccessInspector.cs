@@ -21,7 +21,7 @@ namespace IDeliverable.ForceClient.Core.ServiceModel
 
         public object BeforeSendRequest(ref Message request, IClientChannel channel)
         {
-            var accessToken = mOrgAccessProvider.GetAccessTokenAsync().Result;
+            var accessToken = mOrgAccessProvider.GetAccessTokenAsync(forceRefresh: false).Result;
 
             request.Headers.Add(new SessionHeader(accessToken));
 

@@ -71,12 +71,16 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
             return urls[apiName];
         }
 
-        public async Task<string> GetAccessTokenAsync()
+        public async Task<string> GetAccessTokenAsync(bool forceRefresh)
         {
-            var accessToken = await mTokenStore.LoadTokenAsync(TokenKind.AccessToken, mOrgType, mUsername);
+            string accessToken = null;
+
+            if (!forceRefresh)
+                accessToken = await mTokenStore.LoadTokenAsync(TokenKind.AccessToken, mOrgType, mUsername);
+
             if (accessToken == null)
             {
-                mLogger.LogDebug($"No valid access token found in store for '{mUsername}'.");
+                mLogger.LogDebug($"No access token found in store for '{mUsername}'.");
 
                 var client = new OidcClient(mOidcOptions);
                 var tokenData = await AcquireAccessTokenAsync(client);
