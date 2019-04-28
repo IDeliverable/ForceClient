@@ -2,9 +2,9 @@ using System;
 
 namespace IDeliverable.ForceClient.Core.Tokens
 {
-    public enum TokenKind
-    {
-        AccessToken,
-        RefreshToken
-    }
+	public enum TokenKind
+	{
+		AccessToken,
+		RefreshToken
+	}
 }

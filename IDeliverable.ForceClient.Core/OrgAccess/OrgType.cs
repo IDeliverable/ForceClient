@@ -1,8 +1,8 @@
 namespace IDeliverable.ForceClient.Core.OrgAccess
 {
-    public enum OrgType
-    {
-        Production,
-        Sandbox
-    }
+	public enum OrgType
+	{
+		Production,
+		Sandbox
+	}
 }

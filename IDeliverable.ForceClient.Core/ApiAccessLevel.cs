@@ -1,8 +1,8 @@
 namespace IDeliverable.ForceClient.Core
 {
-    public enum ApiAccessLevel
-    {
-        Unrestricted,
-        Restricted
-    }
+	public enum ApiAccessLevel
+	{
+		Unrestricted,
+		Restricted
+	}
 }

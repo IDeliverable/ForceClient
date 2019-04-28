@@ -11,133 +11,129 @@ using Microsoft.Extensions.Logging;
 
 namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 {
-    public class RetrieveProcess : IRetrieveProcess
-    {
-        public RetrieveProcess(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
-        {
-            mClient = client;
-            mMetadataRules = metadataRules;
-            mLogger = logger;
-        }
+	public class RetrieveProcess : IRetrieveProcess
+	{
+		public RetrieveProcess(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
+		{
+			mClient = client;
+			mMetadataRules = metadataRules;
+			mLogger = logger;
+		}
 
-        private readonly IMetadataClient mClient;
-        private readonly MetadataRules mMetadataRules;
-        private readonly ILogger mLogger;
+		private readonly IMetadataClient mClient;
+		private readonly MetadataRules mMetadataRules;
+		private readonly ILogger mLogger;
 
-        public async Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(IEnumerable<string> types, bool includePackages)
-        {
-            var metadataDescription = await mClient.DescribeAsync();
+		public async Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(IEnumerable<string> types, bool includePackages)
+		{
+			var metadataDescription = await mClient.DescribeAsync();
 
-            var result = new List<MetadataItemInfo>();
+			var result = new List<MetadataItemInfo>();
 
-            var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
-            var parallelismOptions = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = mMetadataRules.MaxConcurrentListMetadataRequests };
+			var linkOptions = new DataflowLinkOptions() { PropagateCompletion = true };
+			var parallelismOptions = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = mMetadataRules.MaxConcurrentListMetadataRequests };
 
-            var source = new BroadcastBlock<string>(type => type);
-            var batchFolderTypes = new BatchBlock<string>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listFolders = new TransformManyBlock<string[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
-            var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
-            var createItemQueries = new TransformBlock<string, MetadataListQuery>(type => new MetadataListQuery(type));
-            var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-            var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries, includePackages), parallelismOptions);
-            var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
+			var source = new BroadcastBlock<string>(type => type);
+			var batchFolderTypes = new BatchBlock<string>(mMetadataRules.MaxListMetadataQueriesPerRequest);
+			var listFolders = new TransformManyBlock<string[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
+			var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
+			var createItemQueries = new TransformBlock<string, MetadataListQuery>(type => new MetadataListQuery(type));
+			var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
+			var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries, includePackages), parallelismOptions);
+			var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
 
-            source.LinkTo(batchFolderTypes, linkOptions, type => metadataDescription.Types[type].IsFolderized);
-            source.LinkTo(createItemQueries, linkOptions, type => !metadataDescription.Types[type].IsFolderized);
-            batchFolderTypes.LinkTo(listFolders, linkOptions);
-            listFolders.LinkTo(createFolderItemQueries, linkOptions);
-            createFolderItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
-            createItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
-            batchItemQueries.LinkTo(listItems, linkOptions);
-            listItems.LinkTo(target, linkOptions);
+			source.LinkTo(batchFolderTypes, linkOptions, type => metadataDescription.Types[type].IsFolderized);
+			source.LinkTo(createItemQueries, linkOptions, type => !metadataDescription.Types[type].IsFolderized);
+			batchFolderTypes.LinkTo(listFolders, linkOptions);
+			listFolders.LinkTo(createFolderItemQueries, linkOptions);
+			createFolderItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
+			createItemQueries.LinkTo(batchItemQueries); // These should not propagate completion
+			batchItemQueries.LinkTo(listItems, linkOptions);
+			listItems.LinkTo(target, linkOptions);
 
-            // Whenever *both* item creation blocks are completed, only then can we signal
-            // the completion of the target to which they are both linked. Perhaps there is
-            // a more elegant way to specify in the linking that the target should complete
-            // only when both sources are completed.
-            _ = Task.WhenAll(createFolderItemQueries.Completion, createItemQueries.Completion).ContinueWith(_ => batchItemQueries.Complete());
+			// Whenever *both* item creation blocks are completed, only then can we signal
+			// the completion of the target to which they are both linked. Perhaps there is
+			// a more elegant way to specify in the linking that the target should complete
+			// only when both sources are completed.
+			_ = Task.WhenAll(createFolderItemQueries.Completion, createItemQueries.Completion).ContinueWith(_ => batchItemQueries.Complete());
 
-            foreach (var type in types)
-                source.Post(type);
-            source.Complete();
+			foreach (var type in types)
+				source.Post(type);
+			source.Complete();
 
-            await target.Completion;
+			await target.Completion;
 
-            return result;
-        }
+			return result;
+		}
 
-        public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
-        {
-            var result = new Dictionary<MetadataRetrieveItemQuery, bool>();
+		public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+		{
+			var result = new Dictionary<MetadataRetrieveItemQuery, bool>();
 
-            if (!itemReferences.Any())
-                return result;
+			if (!itemReferences.Any())
+				return result;
 
-            // This method support retrieving more metadata items than what the Metadata API
-            // supports in one operation, by partitioning the list of items into chunks,
-            // querying the API once per chunk, and then merging the resulting ZIP files into
-            // one before returning.
+			// This method support retrieving more metadata items than what the Metadata API
+			// supports in one operation, by partitioning the list of items into chunks,
+			// querying the API once per chunk, and then merging the resulting ZIP files into
+			// one before returning.
 
-            var itemReferencePartitions = itemReferences.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
+			var itemReferencePartitions = itemReferences.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
 
-            var numItemsTotal = itemReferences.Count();
-            var numItemsRetrieved = 0;
+			var numItemsTotal = itemReferences.Count();
+			var numItemsRetrieved = 0;
 
-            mLogger.LogInformation($"Retrieving {itemReferences.Count()} items in {itemReferencePartitions.Count()} batches...");
+			mLogger.LogInformation($"Retrieving {itemReferences.Count()} items in {itemReferencePartitions.Count()} batches...");
 
-            //using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
-            //{
-            foreach (var itemReferencePartition in itemReferencePartitions)
-            {
-                RetrieveResult retrieveResult = null;
+			//using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+			//{
+			foreach (var itemReferencePartition in itemReferencePartitions)
+			{
+				RetrieveResult retrieveResult = null;
 
-                try
-                {
-                    var operationId = await mClient.StartRetrieveAsync(itemReferencePartition, packageNames: null);
+				try
+				{
+					var operationId = await mClient.StartRetrieveAsync(itemReferencePartition, packageNames: null);
 
-                    while (!(retrieveResult = await mClient.GetRetrieveResultAsync(operationId)).IsDone)
-                        await Task.Delay(TimeSpan.FromSeconds(3));
-                }
-                catch (Exception ex)
-                {
-                    mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
-                    numItemsRetrieved += itemReferencePartition.Count();
-                    foreach (var itemReference in itemReferencePartition)
-                        result.Add(itemReference, false);
-                    continue;
-                }
+					while (!(retrieveResult = await mClient.GetRetrieveResultAsync(operationId)).IsDone)
+						await Task.Delay(TimeSpan.FromSeconds(3));
+				}
+				catch (Exception ex)
+				{
+					mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
+					numItemsRetrieved += itemReferencePartition.Count();
+					foreach (var itemReference in itemReferencePartition)
+						result.Add(itemReference, false);
+					continue;
+				}
 
-                using (var retrieveZipStream = new MemoryStream(retrieveResult.ZipFile))
-                {
-                    using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
-                    {
-                        foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
-                        {
-                            // A merged metadata ZIP file will not have any package manifests.
-                            if (retrieveZipEntry.Name == "package.xml")
-                                continue;
+				using (var retrieveZipStream = new MemoryStream(retrieveResult.ZipFile))
+				using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
+					foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
+					{
+						// A merged metadata ZIP file will not have any package manifests.
+						if (retrieveZipEntry.Name == "package.xml")
+							continue;
 
-                            await entryProcessorAsync(retrieveZipEntry);
+						await entryProcessorAsync(retrieveZipEntry);
 
-                            //var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
+						//var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
 
-                            //using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
-                            //    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
-                        }
-                    }
-                }
+						//using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
+						//    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
+					}
 
-                numItemsRetrieved += itemReferencePartition.Count();
-                foreach (var itemReference in itemReferencePartition)
-                    result.Add(itemReference, true);
+				numItemsRetrieved += itemReferencePartition.Count();
+				foreach (var itemReference in itemReferencePartition)
+					result.Add(itemReference, true);
 
-                mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
-            }
-            //}
+				mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
+			}
+			//}
 
-            mLogger.LogInformation("All items successfully retrieved.");
+			mLogger.LogInformation("All items successfully retrieved.");
 
-            return result;
-        }
-    }
+			return result;
+		}
+	}
 }
