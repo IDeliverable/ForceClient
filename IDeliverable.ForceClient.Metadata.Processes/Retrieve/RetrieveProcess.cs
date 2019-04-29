@@ -108,20 +108,24 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 				}
 
 				using (var retrieveZipStream = new MemoryStream(retrieveResult.ZipFile))
-				using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
-					foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
+				{
+					using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
 					{
-						// A merged metadata ZIP file will not have any package manifests.
-						if (retrieveZipEntry.Name == "package.xml")
-							continue;
+						foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
+						{
+							// A merged metadata ZIP file will not have any package manifests.
+							if (retrieveZipEntry.Name == "package.xml")
+								continue;
 
-						await entryProcessorAsync(retrieveZipEntry);
+							await entryProcessorAsync(retrieveZipEntry);
 
-						//var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
+							//var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
 
-						//using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
-						//    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
+							//using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
+							//    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
+						}
 					}
+				}
 
 				numItemsRetrieved += itemReferencePartition.Count();
 				foreach (var itemReference in itemReferencePartition)

@@ -83,7 +83,7 @@ csharp_style_conditional_delegate_call = true:suggestion
 csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async
 
 # Code-block preferences
-csharp_prefer_braces = when_multiline:suggestion
+csharp_prefer_braces = false:suggestion
 
 # Expression-level preferences
 csharp_prefer_simple_default_expression = true:suggestion
@@ -91,7 +91,7 @@ csharp_style_pattern_local_over_anonymous_function = true:suggestion
 csharp_style_prefer_index_operator = true:suggestion
 csharp_style_prefer_range_operator = true:suggestion
 csharp_style_unused_value_assignment_preference = discard_variable:warning
-csharp_style_unused_value_expression_statement_preference = discard_variable:warning
+csharp_style_unused_value_expression_statement_preference = discard_variable:silent
 
 #### C# Formatting Rules ####
 
