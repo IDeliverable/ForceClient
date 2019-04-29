@@ -94,6 +94,16 @@ namespace IDeliverable.ForceClient.Core.Tokens
 				await writer.WriteAsync(urlsJson);
 		}
 
+		public async Task ClearAllAsync()
+		{
+			foreach (var fileName in mStore.GetFileNames())
+			{
+				var fileLock = mFileLocks.GetOrAdd(fileName, new AsyncReaderWriterLock());
+				using (await fileLock.WriterLockAsync())
+					mStore.DeleteFile(fileName);
+			}
+		}
+
 		private string GetTokenFileName(TokenKind kind, OrgType orgType, string username)
 		{
 			return String.Intern($"{kind}_{orgType}_{username}.json");

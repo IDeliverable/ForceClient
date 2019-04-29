@@ -12,7 +12,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 {
 	public class BrowserOrgAccessProvider : IOrgAccessProvider
 	{
-		public BrowserOrgAccessProvider(ITokenStore tokenStore, ILogger<BrowserOrgAccessProvider> logger, OrgType orgType, string username, string clientId, string clientSecret, int redirectTcpPort = 7890)
+		public BrowserOrgAccessProvider(ITokenStore tokenStore, ILogger<BrowserOrgAccessProvider> logger, OrgType orgType, string username, string clientId, int redirectTcpPort = 7890)
 		{
 			mTokenStore = tokenStore;
 			mLogger = logger;
@@ -35,8 +35,6 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 			{
 				Authority = mAuthority,
 				ClientId = clientId,
-				// TODO: Figure out how to do this without a client secret!
-				ClientSecret = clientSecret,
 				RedirectUri = $"http://localhost:{redirectTcpPort}/",
 				Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
 				ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,

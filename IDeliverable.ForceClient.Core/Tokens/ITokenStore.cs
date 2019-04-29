@@ -12,5 +12,6 @@ namespace IDeliverable.ForceClient.Core.Tokens
 		Task DeleteTokenAsync(TokenKind kind, OrgType orgType, string username);
 		Task<IReadOnlyDictionary<string, string>> LoadUrlsAsync(OrgType orgType, string username);
 		Task SaveUrlsAsync(OrgType orgType, string username, IReadOnlyDictionary<string, string> urls);
+		Task ClearAllAsync();
 	}
 }

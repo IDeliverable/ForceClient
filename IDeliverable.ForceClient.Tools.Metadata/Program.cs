@@ -35,13 +35,10 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 					.AddMetadataProcesses()
 					.BuildServiceProvider();
 
-			// TODO: Figure out how to do this without a client secret!
-			var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeA2zP4q_U4piOC.9D9E0xzbHOmSZJYroajSEEGlK32K_X9i66uunCW3BBCnE";
-			var clientSecret = "2763444084747273086";
-
+			var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeOsBvgoz5Fqxwbc4JHep18AHEZC2.IEJDOcTvkKDbj_9QQ4ntUCqeQJ4PQJe";
 			var tokenStore = new IsolatedTokenStore();
 			var orgAccessLogger = services.GetRequiredService<ILogger<BrowserOrgAccessProvider>>();
-			var orgAccessProvider = new BrowserOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId, clientSecret);
+			var orgAccessProvider = new BrowserOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId);
 			var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();
 			var metadataRules = services.GetRequiredService<MetadataRules>();
 			var retrieveProcess = retrieveProcessFactory.CreateRetrieveProcess(orgAccessProvider);
