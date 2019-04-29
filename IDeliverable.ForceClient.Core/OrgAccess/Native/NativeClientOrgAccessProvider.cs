@@ -1,18 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using IDeliverable.ForceClient.Core;
-using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Core.Tokens;
 using IdentityModel.OidcClient;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
+namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 {
-	public class BrowserOrgAccessProvider : IOrgAccessProvider
+	public class NativeClientOrgAccessProvider : IOrgAccessProvider
 	{
-		public BrowserOrgAccessProvider(ITokenStore tokenStore, ILogger<BrowserOrgAccessProvider> logger, OrgType orgType, string username, string clientId, int redirectTcpPort = 7890)
+		public NativeClientOrgAccessProvider(ITokenStore tokenStore, ILogger<NativeClientOrgAccessProvider> logger, OrgType orgType, string username, string clientId, int redirectTcpPort = 7890)
 		{
 			mTokenStore = tokenStore;
 			mLogger = logger;
@@ -38,7 +36,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 				RedirectUri = $"http://localhost:{redirectTcpPort}/",
 				Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
 				ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
-				Browser = new SystemBrowser(port: 7890)
+				Browser = new DesktopClientBrowser(port: 7890)
 			};
 		}
 

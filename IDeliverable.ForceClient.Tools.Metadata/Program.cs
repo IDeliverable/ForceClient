@@ -3,11 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core.OrgAccess;
+using IDeliverable.ForceClient.Core.OrgAccess.Native;
 using IDeliverable.ForceClient.Core.Tokens;
 using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.ForceClient.Metadata.Processes.Retrieve;
-using IDeliverable.ForceClient.Tools.Metadata.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -24,7 +24,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 			Log.Logger =
 				new LoggerConfiguration()
 					.MinimumLevel.Information()
-					.MinimumLevel.Override(typeof(BrowserOrgAccessProvider).FullName, LogEventLevel.Debug)
+					.MinimumLevel.Override(typeof(NativeClientOrgAccessProvider).FullName, LogEventLevel.Debug)
 					.WriteTo.Console()
 					.CreateLogger();
 
@@ -37,8 +37,9 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
 			var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeOsBvgoz5Fqxwbc4JHep18AHEZC2.IEJDOcTvkKDbj_9QQ4ntUCqeQJ4PQJe";
 			var tokenStore = new IsolatedTokenStore();
-			var orgAccessLogger = services.GetRequiredService<ILogger<BrowserOrgAccessProvider>>();
-			var orgAccessProvider = new BrowserOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId);
+			await tokenStore.ClearAllAsync();
+			var orgAccessLogger = services.GetRequiredService<ILogger<NativeClientOrgAccessProvider>>();
+			var orgAccessProvider = new NativeClientOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId);
 			var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();
 			var metadataRules = services.GetRequiredService<MetadataRules>();
 			var retrieveProcess = retrieveProcessFactory.CreateRetrieveProcess(orgAccessProvider);

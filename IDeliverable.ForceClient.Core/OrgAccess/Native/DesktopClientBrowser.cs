@@ -11,14 +11,14 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
-namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
+namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 {
-	public class SystemBrowser : IBrowser
+	public class DesktopClientBrowser : IBrowser
 	{
 		public int Port { get; }
 		private readonly string _path;
 
-		public SystemBrowser(int? port = null, string path = null)
+		public DesktopClientBrowser(int? port = null, string path = null)
 		{
 			_path = path;
 
@@ -64,27 +64,12 @@ namespace IDeliverable.ForceClient.Tools.Metadata.Authentication
 
 		public static void OpenBrowser(string url)
 		{
-			//try
-			//{
-			//    Process.Start(url);
-			//}
-			//catch
-			//{
-			// hack because of this: https://github.com/dotnet/corefx/issues/10361
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				url = url.Replace("&", "^&");
-				Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
-			}
+				Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				Process.Start("xdg-open", url);
 			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				Process.Start("open", url);
-			//else
-			//{
-			//    throw;
-			//}
-			//}
 		}
 	}
 
