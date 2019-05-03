@@ -12,6 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution", "Solution", "{B0EC34D4-D8E3-493F-AC22-3380F12689D8}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		LICENSE = LICENSE
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IDeliverable.ForceClient.Metadata.Archives", "IDeliverable.ForceClient.Metadata.Archives\IDeliverable.ForceClient.Metadata.Archives.csproj", "{AD6FDA22-B414-4449-9514-D125B4D3878D}"
