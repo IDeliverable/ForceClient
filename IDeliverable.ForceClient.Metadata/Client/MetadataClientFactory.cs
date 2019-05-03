@@ -7,19 +7,23 @@ namespace IDeliverable.ForceClient.Metadata.Client
 {
 	public class MetadataClientFactory : IMetadataClientFactory
 	{
-		public MetadataClientFactory(MetadataRules metadataRules, IServiceProvider services)
+		public MetadataClientFactory(IOrgAccessProvider orgAccessProvider, MetadataRules metadataRules, IServiceProvider services)
 		{
+			mOrgAccessProvider = orgAccessProvider;
 			mMetadataRules = metadataRules;
 			mServices = services;
 		}
 
+		private readonly IOrgAccessProvider mOrgAccessProvider;
 		private readonly MetadataRules mMetadataRules;
 		private readonly IServiceProvider mServices;
 
-		public IMetadataClient CreateClient(IOrgAccessProvider orgAccessProvider)
+		public IMetadataClient CreateClient(OrgType orgType, string username)
 		{
+			// INFO: Right now we only have one IMetadataClient implementation (for SOAP) but this
+			// will probably changed in the future.
 			var logger = mServices.GetRequiredService<ILogger<SoapMetadataClient>>();
-			return new SoapMetadataClient(orgAccessProvider, mMetadataRules, logger);
+			return new SoapMetadataClient(mOrgAccessProvider, mMetadataRules, logger, orgType, username);
 		}
 	}
 }

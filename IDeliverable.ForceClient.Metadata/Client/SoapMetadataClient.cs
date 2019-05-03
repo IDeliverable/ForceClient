@@ -15,11 +15,13 @@ namespace IDeliverable.ForceClient.Metadata.Client
 {
 	class SoapMetadataClient : IMetadataClient
 	{
-		public SoapMetadataClient(IOrgAccessProvider orgAccessProvider, MetadataRules metadataRules, ILogger<SoapMetadataClient> logger)
+		public SoapMetadataClient(IOrgAccessProvider orgAccessProvider, MetadataRules metadataRules, ILogger<SoapMetadataClient> logger, OrgType orgType, string username)
 		{
 			mOrgAccessProvider = orgAccessProvider;
 			mMetadataRules = metadataRules;
 			mLogger = logger;
+			mOrgType = orgType;
+			mUsername = username;
 
 			mClient = new MetadataPortTypeClient();
 			mMapper = new MapperConfiguration(cfg => { }).CreateMapper();
@@ -31,10 +33,10 @@ namespace IDeliverable.ForceClient.Metadata.Client
 					.Handle<FaultException>(ex => ex.Code.Name == "INVALID_SESSION_ID")
 					.RetryAsync(
 						retryCount: 1,
-						onRetryAsync: async (outcome, retryNumber, context) =>
+						onRetryAsync: async (Exception outcome, int retryNumber, Context context) =>
 						{
 							mLogger.LogInformation("Authorization with metadata API failed (API returned INVALID_SESSION_ID error); attempting to refresh access token.");
-							_ = await mOrgAccessProvider.GetAccessTokenAsync(forceRefresh: true);
+							_ = await mOrgAccessProvider.GetAccessTokenAsync(mOrgType, mUsername, forceRefresh: true);
 						}),
 
 				 // Automatically retry 3 times on timeout.
@@ -49,12 +51,14 @@ namespace IDeliverable.ForceClient.Metadata.Client
 						})
 			);
 
-			mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
+			mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mOrgType, mUsername, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
 		}
 
 		private readonly IOrgAccessProvider mOrgAccessProvider;
 		private readonly MetadataRules mMetadataRules;
 		private readonly ILogger mLogger;
+		private readonly OrgType mOrgType;
+		private readonly string mUsername;
 		private readonly MetadataPortTypeClient mClient;
 		private readonly IMapper mMapper;
 		private readonly IAsyncPolicy mCallPolicy;

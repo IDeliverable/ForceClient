@@ -5,28 +5,30 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using Microsoft.Extensions.Logging;
 
-namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
+namespace IDeliverable.ForceClient.Metadata.Processes
 {
-	public class RetrieveProcess : IRetrieveProcess
+	public class RetrieveProcess
 	{
-		public RetrieveProcess(IMetadataClient client, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
+		public RetrieveProcess(IMetadataClientFactory clientFactory, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
 		{
-			mClient = client;
+			mClientFactory = clientFactory;
 			mMetadataRules = metadataRules;
 			mLogger = logger;
 		}
 
-		private readonly IMetadataClient mClient;
+		private readonly IMetadataClientFactory mClientFactory;
 		private readonly MetadataRules mMetadataRules;
 		private readonly ILogger mLogger;
 
-		public async Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(IEnumerable<string> types, bool includePackages)
+		public async Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(OrgType orgType, string username, IEnumerable<string> types, bool includePackages)
 		{
-			var metadataDescription = await mClient.DescribeAsync();
+			var client = mClientFactory.CreateClient(orgType, username);
+			var metadataDescription = await client.DescribeAsync();
 
 			var result = new List<MetadataItemInfo>();
 
@@ -35,11 +37,11 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 
 			var source = new BroadcastBlock<string>(type => type);
 			var batchFolderTypes = new BatchBlock<string>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-			var listFolders = new TransformManyBlock<string[], MetadataFolderInfo>(typeList => mClient.ListFoldersAsync(typeList), parallelismOptions);
+			var listFolders = new TransformManyBlock<string[], MetadataFolderInfo>(typeList => client.ListFoldersAsync(typeList), parallelismOptions);
 			var createFolderItemQueries = new TransformBlock<MetadataFolderInfo, MetadataListQuery>(folderInfo => new MetadataListQuery(folderInfo.ContainsType, folderInfo.Name));
 			var createItemQueries = new TransformBlock<string, MetadataListQuery>(type => new MetadataListQuery(type));
 			var batchItemQueries = new BatchBlock<MetadataListQuery>(mMetadataRules.MaxListMetadataQueriesPerRequest);
-			var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => mClient.ListItemsAsync(queries, includePackages), parallelismOptions);
+			var listItems = new TransformManyBlock<MetadataListQuery[], MetadataItemInfo>(queries => client.ListItemsAsync(queries, includePackages), parallelismOptions);
 			var target = new ActionBlock<MetadataItemInfo>(itemInfo => result.Add(itemInfo));
 
 			source.LinkTo(batchFolderTypes, linkOptions, type => metadataDescription.Types[type].IsFolderized);
@@ -66,7 +68,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 			return result;
 		}
 
-		public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+		public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
 		{
 			var result = new Dictionary<MetadataRetrieveItemQuery, bool>();
 
@@ -85,6 +87,8 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 
 			mLogger.LogInformation($"Retrieving {itemReferences.Count()} items in {itemReferencePartitions.Count()} batches...");
 
+			var client = mClientFactory.CreateClient(orgType, username);
+
 			//using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
 			//{
 			foreach (var itemReferencePartition in itemReferencePartitions)
@@ -93,9 +97,9 @@ namespace IDeliverable.ForceClient.Metadata.Processes.Retrieve
 
 				try
 				{
-					var operationId = await mClient.StartRetrieveAsync(itemReferencePartition, packageNames: null);
+					var operationId = await client.StartRetrieveAsync(itemReferencePartition, packageNames: null);
 
-					while (!(retrieveResult = await mClient.GetRetrieveResultAsync(operationId)).IsDone)
+					while (!(retrieveResult = await client.GetRetrieveResultAsync(operationId)).IsDone)
 						await Task.Delay(TimeSpan.FromSeconds(3));
 				}
 				catch (Exception ex)

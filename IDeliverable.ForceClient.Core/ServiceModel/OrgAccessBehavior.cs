@@ -8,12 +8,16 @@ namespace IDeliverable.ForceClient.Core.ServiceModel
 {
 	class OrgAccessBehavior : IEndpointBehavior
 	{
-		public OrgAccessBehavior(IOrgAccessProvider orgAccessProvider)
+		public OrgAccessBehavior(IOrgAccessProvider orgAccessProvider, OrgType orgType, string username)
 		{
 			mOrgAccessProvider = orgAccessProvider;
+			mOrgType = orgType;
+			mUsername = username;
 		}
 
 		private readonly IOrgAccessProvider mOrgAccessProvider;
+		private readonly OrgType mOrgType;
+		private readonly string mUsername;
 
 		public void AddBindingParameters(ServiceEndpoint endpoint, BindingParameterCollection bindingParameters)
 		{
@@ -21,7 +25,7 @@ namespace IDeliverable.ForceClient.Core.ServiceModel
 
 		public void ApplyClientBehavior(ServiceEndpoint endpoint, ClientRuntime clientRuntime)
 		{
-			clientRuntime.ClientMessageInspectors.Add(new OrgAccessInspector(mOrgAccessProvider));
+			clientRuntime.ClientMessageInspectors.Add(new OrgAccessInspector(mOrgAccessProvider, mOrgType, mUsername));
 		}
 
 		public void ApplyDispatchBehavior(ServiceEndpoint endpoint, EndpointDispatcher endpointDispatcher)

@@ -10,113 +10,116 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 {
 	public class NativeClientOrgAccessProvider : IOrgAccessProvider
 	{
-		public NativeClientOrgAccessProvider(ITokenStore tokenStore, ILogger<NativeClientOrgAccessProvider> logger, OrgType orgType, string username, string clientId, int redirectTcpPort = 7890)
+		public NativeClientOrgAccessProvider(ITokenStore tokenStore, ILogger<NativeClientOrgAccessProvider> logger, string clientId, int listenerTcpPort = 7890)
 		{
 			mTokenStore = tokenStore;
 			mLogger = logger;
-			mOrgType = orgType;
-			mUsername = username;
-
-			switch (orgType)
-			{
-				case OrgType.Production:
-					mAuthority = Constants.AuthorizationEndpointUrlProduction;
-					break;
-				case OrgType.Sandbox:
-					mAuthority = Constants.AuthorizationEndpointUrlSandbox;
-					break;
-				default:
-					throw new ArgumentOutOfRangeException(nameof(orgType), $"Unrecognized {nameof(OrgType)} value '{orgType}'.");
-			}
-
-			mOidcOptions = new OidcClientOptions()
-			{
-				Authority = mAuthority,
-				ClientId = clientId,
-				RedirectUri = $"http://localhost:{redirectTcpPort}/",
-				Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
-				ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
-				Browser = new DesktopClientBrowser(port: 7890)
-			};
+			mClientId = clientId;
+			mListenerTcpPort = listenerTcpPort;
 		}
 
 		private readonly ITokenStore mTokenStore;
 		private readonly ILogger mLogger;
-		private readonly OrgType mOrgType;
-		private readonly string mUsername;
-		private readonly string mAuthority;
-		private readonly OidcClientOptions mOidcOptions;
+		private readonly string mClientId;
+		private readonly int mListenerTcpPort;
 
-		public async Task<string> GetSoapApiUrlAsync(string apiName)
+		public async Task<string> GetSoapApiUrlAsync(OrgType orgType, string username, string apiName)
 		{
-			var urls = await mTokenStore.LoadUrlsAsync(mOrgType, mUsername);
+			var urls = await mTokenStore.LoadUrlsAsync(orgType, username);
 			if (urls == null)
 			{
-				mLogger.LogDebug($"No URLs found in store for '{mUsername}'.");
+				mLogger.LogDebug($"No URLs found in store for user '{username}'.");
 
 				// Since we have to stored URLs, and URLs are not returned when using a refresh token (only on
 				// full interactive login flow), we need to also clear out any saved refresh tokens to force
 				// a full login, so that we may acquire the URLs.
-				await mTokenStore.DeleteTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername);
+				await mTokenStore.DeleteTokenAsync(TokenKind.RefreshToken, orgType, username);
 
-				var client = new OidcClient(mOidcOptions);
-				var tokenData = await AcquireAccessTokenAsync(client);
+				var tokenData = await AcquireAccessTokenAsync(orgType, username);
 				urls = tokenData.Urls;
 			}
 
 			return urls[apiName];
 		}
 
-		public async Task<string> GetAccessTokenAsync(bool forceRefresh)
+		public async Task<string> GetAccessTokenAsync(OrgType orgType, string username, bool forceRefresh)
 		{
 			string accessToken = null;
 
 			if (!forceRefresh)
-				accessToken = await mTokenStore.LoadTokenAsync(TokenKind.AccessToken, mOrgType, mUsername);
+				accessToken = await mTokenStore.LoadTokenAsync(TokenKind.AccessToken, orgType, username);
 
 			if (accessToken == null)
 			{
-				mLogger.LogDebug($"No access token found in store for '{mUsername}'.");
+				mLogger.LogDebug($"No access token found in store for user '{username}'.");
 
-				var client = new OidcClient(mOidcOptions);
-				var tokenData = await AcquireAccessTokenAsync(client);
+				var tokenData = await AcquireAccessTokenAsync(orgType, username);
 				accessToken = tokenData.AccessToken;
 			}
 
 			return accessToken;
 		}
 
-		private async Task<TokenData> AcquireAccessTokenAsync(OidcClient client)
+		private OidcClient CreateClient(OrgType orgType)
 		{
-			mLogger.LogDebug($"Acquiring access token for '{mUsername}'...");
+			string authority;
+			switch (orgType)
+			{
+				case OrgType.Production:
+					authority = Constants.AuthorizationEndpointUrlProduction;
+					break;
+				case OrgType.Sandbox:
+					authority = Constants.AuthorizationEndpointUrlSandbox;
+					break;
+				default:
+					throw new ArgumentOutOfRangeException(nameof(orgType), $"Unrecognized {nameof(OrgType)} value '{orgType}'.");
+			}
+
+			var options = new OidcClientOptions()
+			{
+				Authority = authority,
+				ClientId = mClientId,
+				RedirectUri = $"http://localhost:{mListenerTcpPort}/",
+				Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
+				ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect,
+				Browser = new DesktopClientBrowser(port: 7890)
+			};
+
+			return new OidcClient(options);
+		}
+
+		private async Task<TokenData> AcquireAccessTokenAsync(OrgType orgType, string username)
+		{
+			mLogger.LogDebug($"Acquiring access token for user '{username}'...");
 
 			// If we have a refresh token, first try to use that to acquire an access token.
-			var refreshToken = await mTokenStore.LoadTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername);
+			var refreshToken = await mTokenStore.LoadTokenAsync(TokenKind.RefreshToken, orgType, username);
 			if (refreshToken != null)
 			{
-				mLogger.LogDebug($"Refresh token found in store store for '{mUsername}'.");
+				mLogger.LogDebug($"Refresh token found in store store for user '{username}'.");
 
-				var tokenData = await RefreshAccessTokenAsync(client, refreshToken, throwOnError: false);
+				var tokenData = await RefreshAccessTokenAsync(orgType, username, refreshToken, throwOnError: false);
 				if (tokenData != null)
 					return tokenData;
 			}
 
-			mLogger.LogDebug($"Refresh token could not be used for '{mUsername}'; authenticating...");
+			mLogger.LogDebug($"Refresh token could not be used for user '{username}'; authorizing...");
 
 			// Either we did not have any refresh token, or using it failed; perform a full interactive login flow.
+			var client = CreateClient(orgType);
 			var request = new LoginRequest();
 			var loginResult = await client.LoginAsync(request);
 			if (loginResult.IsError)
-				throw new Exception($"Error during authentication: {loginResult.Error}");
+				throw new Exception($"Error during authorization: {loginResult.Error}");
 
-			mLogger.LogDebug($"Successfully authenticated '{mUsername}'.");
+			mLogger.LogDebug($"Successfully acquired access token for user '{username}'.");
 
 			var urlsJson = loginResult.User.FindFirst("urls").Value;
 			var urls = JsonConvert.DeserializeObject<Dictionary<string, string>>(urlsJson);
 
-			await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, loginResult.AccessToken);
-			await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, loginResult.RefreshToken);
-			await mTokenStore.SaveUrlsAsync(mOrgType, mUsername, urls);
+			await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, orgType, username, loginResult.AccessToken);
+			await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, orgType, username, loginResult.RefreshToken);
+			await mTokenStore.SaveUrlsAsync(orgType, username, urls);
 
 			var result =
 				new TokenData(
@@ -127,10 +130,11 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 			return result;
 		}
 
-		private async Task<TokenData> RefreshAccessTokenAsync(OidcClient client, string refreshToken, bool throwOnError)
+		private async Task<TokenData> RefreshAccessTokenAsync(OrgType orgType, string username, string refreshToken, bool throwOnError)
 		{
-			mLogger.LogDebug($"Refreshing access token for '{mUsername}'...");
+			mLogger.LogDebug($"Refreshing access token for user '{username}'...");
 
+			var client = CreateClient(orgType);
 			var refreshTokenResult = await client.RefreshTokenAsync(refreshToken);
 
 			if (refreshTokenResult.IsError)
@@ -138,15 +142,15 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 				if (throwOnError)
 					throw new Exception($"Error during access token refresh: {refreshTokenResult.Error}");
 
-				mLogger.LogDebug($"Failed to refresh access token for '{mUsername}'. Error: {refreshTokenResult.Error}");
+				mLogger.LogDebug($"Failed to refresh access token for user '{username}'. Error: {refreshTokenResult.Error}");
 
 				return null;
 			}
 
-			mLogger.LogDebug($"Successfully refreshed access token for '{mUsername}'.");
+			mLogger.LogDebug($"Successfully refreshed access token for user '{username}'.");
 
-			await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, mOrgType, mUsername, refreshTokenResult.AccessToken);
-			await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, mOrgType, mUsername, refreshTokenResult.RefreshToken);
+			await mTokenStore.SaveTokenAsync(TokenKind.AccessToken, orgType, username, refreshTokenResult.AccessToken);
+			await mTokenStore.SaveTokenAsync(TokenKind.RefreshToken, orgType, username, refreshTokenResult.RefreshToken);
 
 			var result =
 				new TokenData(

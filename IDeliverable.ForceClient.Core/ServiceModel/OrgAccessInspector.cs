@@ -8,12 +8,16 @@ namespace IDeliverable.ForceClient.Core.ServiceModel
 {
 	class OrgAccessInspector : IClientMessageInspector
 	{
-		public OrgAccessInspector(IOrgAccessProvider orgAccessProvider)
+		public OrgAccessInspector(IOrgAccessProvider orgAccessProvider, OrgType orgType, string username)
 		{
 			mOrgAccessProvider = orgAccessProvider;
+			mOrgType = orgType;
+			mUsername = username;
 		}
 
 		private readonly IOrgAccessProvider mOrgAccessProvider;
+		private readonly OrgType mOrgType;
+		private readonly string mUsername;
 
 		public void AfterReceiveReply(ref Message reply, object correlationState)
 		{
@@ -21,7 +25,7 @@ namespace IDeliverable.ForceClient.Core.ServiceModel
 
 		public object BeforeSendRequest(ref Message request, IClientChannel channel)
 		{
-			var accessToken = mOrgAccessProvider.GetAccessTokenAsync(forceRefresh: false).Result;
+			var accessToken = mOrgAccessProvider.GetAccessTokenAsync(mOrgType, mUsername, forceRefresh: false).Result;
 
 			request.Headers.Add(new SessionHeader(accessToken));
 

@@ -4,12 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Core.OrgAccess.Native;
-using IDeliverable.ForceClient.Core.Tokens;
-using IDeliverable.ForceClient.Metadata;
 using IDeliverable.ForceClient.Metadata.Client;
-using IDeliverable.ForceClient.Metadata.Processes.Retrieve;
+using IDeliverable.ForceClient.Metadata.Processes;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Serilog;
@@ -31,20 +28,24 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 			var services =
 				new ServiceCollection()
 					.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true))
-					.AddMetadataServices()
-					.AddMetadataProcesses()
+					.AddForceClient(configure =>
+					{
+						var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeOsBvgoz5Fqxwbc4JHep18AHEZC2.IEJDOcTvkKDbj_9QQ4ntUCqeQJ4PQJe";
+						configure.UseNativeClientAuthentication(clientId, listenerTcpPort: 7890);
+					})
+					.AddForceMetadataClient(configure =>
+					{
+						var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeOsBvgoz5Fqxwbc4JHep18AHEZC2.IEJDOcTvkKDbj_9QQ4ntUCqeQJ4PQJe";
+						configure.UseNativeClientAuthentication(clientId, listenerTcpPort: 7890);
+					})
+					.AddForceMetadataProcesses()
 					.BuildServiceProvider();
 
-			var clientId = "3MVG9A_f29uWoVQvrJSnfk5LPeOsBvgoz5Fqxwbc4JHep18AHEZC2.IEJDOcTvkKDbj_9QQ4ntUCqeQJ4PQJe";
-			var tokenStore = new IsolatedTokenStore();
-			await tokenStore.ClearAllAsync();
-			var orgAccessLogger = services.GetRequiredService<ILogger<NativeClientOrgAccessProvider>>();
-			var orgAccessProvider = new NativeClientOrgAccessProvider(tokenStore, orgAccessLogger, OrgType.Production, "daniel.stolt@astratech.com", clientId);
-			var retrieveProcessFactory = services.GetRequiredService<IRetrieveProcessFactory>();
-			var metadataRules = services.GetRequiredService<MetadataRules>();
-			var retrieveProcess = retrieveProcessFactory.CreateRetrieveProcess(orgAccessProvider);
+			const OrgType orgType = OrgType.Production;
+			const string username = "daniel.stolt@astratech.com";
 
-			var client = services.GetRequiredService<IMetadataClientFactory>().CreateClient(orgAccessProvider);
+			var client = services.GetRequiredService<IMetadataClientFactory>().CreateClient(orgType, username);
+			var retrieveProcess = services.GetRequiredService<RetrieveProcess>();
 
 			var jsonSettings = new JsonSerializerSettings();
 			jsonSettings.Formatting = Formatting.Indented;
@@ -86,7 +87,7 @@ namespace IDeliverable.ForceClient.Tools.Metadata
 
 				Console.WriteLine("Listing metadata items...");
 				var metadataTypeNames = metadataDescription.Types.Keys;
-				var itemInfoList = await retrieveProcess.ListItemsOfTypesAsync(metadataTypeNames, includePackages: true);
+				var itemInfoList = await retrieveProcess.ListItemsOfTypesAsync(orgType, username, metadataTypeNames, includePackages: true);
 				Console.WriteLine($"{itemInfoList.Count()} metadata items found.");
 				var itemInfoListJson = JsonConvert.SerializeObject(itemInfoList, jsonSettings);
 				await File.WriteAllTextAsync(@"C:\Temp\MetadataList.json", itemInfoListJson);
