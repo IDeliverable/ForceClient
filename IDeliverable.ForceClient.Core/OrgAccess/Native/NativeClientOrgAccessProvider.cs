@@ -107,7 +107,13 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 
 			// Either we did not have any refresh token, or using it failed; perform a full interactive login flow.
 			var client = CreateClient(orgType);
-			var request = new LoginRequest();
+			var request = new LoginRequest()
+			{
+				FrontChannelExtraParameters = new Dictionary<string, string>()
+				{
+					{ "login_hint", username }
+				}
+			};
 			var loginResult = await client.LoginAsync(request);
 			if (loginResult.IsError)
 				throw new Exception($"Error during authorization: {loginResult.Error}");
