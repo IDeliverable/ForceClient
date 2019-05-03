@@ -111,7 +111,8 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 			{
 				FrontChannelExtraParameters = new Dictionary<string, string>()
 				{
-					{ "login_hint", username }
+					{ "login_hint", username }, // Prepopulate the username field
+					{ "prompt", "login" } // Force re-authentication even if browser is already signed in
 				}
 			};
 			var loginResult = await client.LoginAsync(request);
