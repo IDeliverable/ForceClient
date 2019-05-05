@@ -221,7 +221,5 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 			return newPackage;
 		}
-
-		//public delegate Package PackageFactory(string name, string directoryPath);
 	}
 }
