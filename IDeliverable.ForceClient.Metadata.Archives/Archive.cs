@@ -97,7 +97,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			return subdirectoryNamesQuery.Distinct().ToArray();
 		}
 
-		public Archive(IArchiveStorage storage, MetadataDescription metadataDescription, bool isSinglePackage)
+		private Archive(IArchiveStorage storage, MetadataDescription metadataDescription, bool isSinglePackage)
 		{
 			mStorage = storage;
 			mMetadataDescription = metadataDescription;

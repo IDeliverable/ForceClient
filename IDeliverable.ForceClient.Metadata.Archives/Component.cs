@@ -79,8 +79,10 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 				await WriteAsync(readStream);
 
 			if (mTypeDescription.HasMetaFile)
+			{
 				using (var metaFileReadStream = await other.OpenMetaFileReadAsync())
 					await WriteMetaFileAsync(metaFileReadStream);
+			}
 		}
 
 		public async Task<bool> GetIsModifiedSinceAsync(Component previous)
@@ -93,8 +95,10 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 					return true;
 
 				for (var i = 0; i < thisStream.Length; i++)
+				{
 					if (thisStream.ReadByte() != previousStream.ReadByte())
 						return true;
+				}
 			}
 
 			return false;

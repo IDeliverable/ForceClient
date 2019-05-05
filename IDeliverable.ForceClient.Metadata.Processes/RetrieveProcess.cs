@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using IDeliverable.ForceClient.Core.OrgAccess;
+using IDeliverable.ForceClient.Metadata.Archives;
+using IDeliverable.ForceClient.Metadata.Archives.Storage;
 using IDeliverable.ForceClient.Metadata.Client;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using Microsoft.Extensions.Logging;
 
 namespace IDeliverable.ForceClient.Metadata.Processes
 {
-	public class RetrieveProcess
+	public class RetrieveProcess : IRetrieveProcess
 	{
 		public RetrieveProcess(IMetadataClientFactory clientFactory, MetadataRules metadataRules, ILogger<RetrieveProcess> logger)
 		{
@@ -68,11 +68,11 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 			return result;
 		}
 
-		public async Task<IReadOnlyDictionary<MetadataRetrieveItemQuery, bool>> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemReferences, Func<ZipArchiveEntry, Task> entryProcessorAsync)
+		public async Task<RetrieveResultInfo> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemQueries, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory)
 		{
-			var result = new Dictionary<MetadataRetrieveItemQuery, bool>();
+			var result = new RetrieveResultInfo();
 
-			if (!itemReferences.Any())
+			if (!itemQueries.Any())
 				return result;
 
 			// This method support retrieving more metadata items than what the Metadata API
@@ -80,24 +80,23 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 			// querying the API once per chunk, and then merging the resulting ZIP files into
 			// one before returning.
 
-			var itemReferencePartitions = itemReferences.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
+			var itemQueryPartitions = itemQueries.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
 
-			var numItemsTotal = itemReferences.Count();
+			var numItemsTotal = itemQueries.Count();
 			var numItemsRetrieved = 0;
 
-			mLogger.LogInformation($"Retrieving {itemReferences.Count()} items in {itemReferencePartitions.Count()} batches...");
+			mLogger.LogInformation($"Retrieving {itemQueries.Count()} items in {itemQueryPartitions.Count()} batches...");
 
 			var client = mClientFactory.CreateClient(orgType, username);
+			var metadataDescription = await client.DescribeAsync();
 
-			//using (var resultZipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
-			//{
-			foreach (var itemReferencePartition in itemReferencePartitions)
+			foreach (var itemQueryPartition in itemQueryPartitions)
 			{
 				RetrieveResult retrieveResult = null;
 
 				try
 				{
-					var operationId = await client.StartRetrieveAsync(itemReferencePartition, packageNames: null);
+					var operationId = await client.StartRetrieveAsync(itemQueryPartition, packageNames: null, singlePackage: true);
 
 					while (!(retrieveResult = await client.GetRetrieveResultAsync(operationId)).IsDone)
 						await Task.Delay(TimeSpan.FromSeconds(3));
@@ -105,39 +104,24 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 				catch (Exception ex)
 				{
 					mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
-					numItemsRetrieved += itemReferencePartition.Count();
-					foreach (var itemReference in itemReferencePartition)
-						result.Add(itemReference, false);
+					numItemsRetrieved += itemQueryPartition.Count();
+					//foreach (var itemReference in itemQueryPartition)
+					//	result.Add(itemReference, false);
 					continue;
 				}
 
-				using (var retrieveZipStream = new MemoryStream(retrieveResult.ZipFile))
-				{
-					using (var retrieveZipArchive = new ZipArchive(retrieveZipStream, ZipArchiveMode.Read))
-					{
-						foreach (var retrieveZipEntry in retrieveZipArchive.Entries)
-						{
-							// A merged metadata ZIP file will not have any package manifests.
-							if (retrieveZipEntry.Name == "package.xml")
-								continue;
+				var tempArchiveStorage = tempStorageFactory();
+				await tempArchiveStorage.LoadFromZipAsync(retrieveResult.ZipFile);
+				var tempArchive = await Archive.LoadAsync(tempArchiveStorage, metadataDescription);
 
-							await entryProcessorAsync(retrieveZipEntry);
+				await targetArchive.MergeFromAsync(tempArchive);
 
-							//var resultZipEntry = resultZipArchive.CreateEntry(retrieveZipEntry.FullName);
-
-							//using (Stream retrieveZipEntryStream = retrieveZipEntry.Open(), resultZipEntryStream = resultZipEntry.Open())
-							//    await retrieveZipEntryStream.CopyToAsync(resultZipEntryStream);
-						}
-					}
-				}
-
-				numItemsRetrieved += itemReferencePartition.Count();
-				foreach (var itemReference in itemReferencePartition)
-					result.Add(itemReference, true);
+				numItemsRetrieved += itemQueryPartition.Count();
+				//foreach (var itemReference in itemQueryPartition)
+				//	result.Add(itemReference, true);
 
 				mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
 			}
-			//}
 
 			mLogger.LogInformation("All items successfully retrieved.");
 

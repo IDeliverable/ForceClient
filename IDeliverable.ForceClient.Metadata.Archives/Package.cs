@@ -154,7 +154,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			var typeDirectoryPatternsQuery =
 				from typeDescription in mMetadataDescription.Types.Values
 				let typeDirectoryPath = CombinePath(DirectoryPath, typeDescription.ArchiveDirectoryName)
-				let pattern = $"*.{typeDescription.ArchiveFileNameExtension}"
+				let pattern = !String.IsNullOrEmpty(typeDescription.ArchiveFileNameExtension) ? $"*.{typeDescription.ArchiveFileNameExtension}" : null
 				orderby typeDescription.Name
 				select (typeDescription, typeDirectoryPath, pattern);
 

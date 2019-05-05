@@ -24,7 +24,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
 
 			mLogger = logger;
 
-			mLogger.LogInformation($"Configured base path '{basePath}' expanded to '{expandedBasePath}'.");
+			mLogger.LogDebug($"Configured base path '{basePath}' expanded to '{expandedBasePath}'.");
 
 			Directory.CreateDirectory(expandedBasePath);
 

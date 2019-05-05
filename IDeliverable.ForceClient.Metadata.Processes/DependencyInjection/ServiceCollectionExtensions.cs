@@ -9,8 +9,8 @@ namespace Microsoft.Extensions.DependencyInjection
 			return
 				services
 					.AddForceMetadataClient()
-					.AddSingleton<DeployProcess>()
-					.AddSingleton<RetrieveProcess>();
+					.AddSingleton<IDeployProcess, DeployProcess>()
+					.AddSingleton<IRetrieveProcess, RetrieveProcess>();
 		}
 	}
 }

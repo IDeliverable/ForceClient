@@ -87,10 +87,14 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
 		public static async Task LoadFromZipAsync(this IArchiveStorage storage, Stream zipStream)
 		{
 			using (var zipArchive = new ZipArchive(zipStream, ZipArchiveMode.Read))
+			{
 				// TODO: Speed this up using a simple buffered TPL pipeline.
 				foreach (var zipEntry in zipArchive.Entries)
+				{
 					using (var zipEntryStream = zipEntry.Open())
 						await storage.WriteAsync(zipEntry.FullName, zipEntryStream);
+				}
+			}
 		}
 
 		public static async Task SaveToZipAsync(this IArchiveStorage storage, byte[] zipBytes)

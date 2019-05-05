@@ -6,7 +6,7 @@ using IDeliverable.ForceClient.Metadata.Client;
 
 namespace IDeliverable.ForceClient.Metadata.Processes
 {
-	public class DeployProcess
+	public class DeployProcess : IDeployProcess
 	{
 		public DeployProcess(IMetadataClientFactory clientFactory)
 		{

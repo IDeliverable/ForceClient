@@ -51,6 +51,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 						})
 			);
 
+			mClient.Endpoint.Binding.SendTimeout = TimeSpan.FromMinutes(10);
 			mClient.Endpoint.ConfigureOrgAccess(orgAccessProvider, mOrgType, mUsername, mMetadataRules.MetadataApiName, mMetadataRules.MetadataApiVersion);
 		}
 
@@ -179,8 +180,22 @@ namespace IDeliverable.ForceClient.Metadata.Client
 			}
 		}
 
-		public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> unpackedItemQueries, IEnumerable<string> packageNames)
+		public async Task<string> StartRetrieveAsync(IEnumerable<MetadataRetrieveItemQuery> unpackedItemQueries, IEnumerable<string> packageNames, bool singlePackage)
 		{
+			if (unpackedItemQueries == null)
+				unpackedItemQueries = Enumerable.Empty<MetadataRetrieveItemQuery>();
+			if (packageNames == null)
+				packageNames = Enumerable.Empty<string>();
+
+			if (singlePackage)
+			{
+				if (unpackedItemQueries.Any() && packageNames.Any())
+					throw new ArgumentException("Cannot retrieve a single-package archive with both unpackaged items and one or more packages.", nameof(singlePackage));
+
+				if (packageNames.Count() > 1)
+					throw new ArgumentException("Cannot retrieve a single-package archive with more than one package.", nameof(singlePackage));
+			}
+
 			if (unpackedItemQueries.Count() > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
 				throw new ArgumentOutOfRangeException(nameof(unpackedItemQueries), $"The number of metadata items to retrieve ({unpackedItemQueries.Count()}) is greater than the maximum number allowed per request ({mMetadataRules.MaxRetrieveMetadataItemsPerRequest}).");
 
@@ -197,7 +212,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 			{
 				unpackaged = new Package() { types = typeMembersQuery.ToArray() },
 				packageNames = packageNames?.ToArray(),
-				singlePackage = false
+				singlePackage = singlePackage
 			};
 
 			var response = await mCallPolicy.ExecuteAsync(() => mClient.retrieveAsync(null, null, request));
