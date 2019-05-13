@@ -94,7 +94,7 @@ namespace IDeliverable.ForceClient.Core.OrgAccess.Native
 
 			// If we have a refresh token, first try to use that to acquire an access token.
 			var refreshToken = await mTokenStore.LoadTokenAsync(TokenKind.RefreshToken, orgType, username);
-			if (refreshToken != null)
+			if (!String.IsNullOrEmpty(refreshToken))
 			{
 				mLogger.LogDebug($"Refresh token found in store store for user '{username}'.");
 
