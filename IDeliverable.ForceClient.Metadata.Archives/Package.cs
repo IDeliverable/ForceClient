@@ -11,6 +11,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 	public class Package : IEquatable<Package>
 	{
 		internal const string ManifestFileName = "package.xml";
+		internal const string MetaFileNameSuffix = "-meta.xml";
 
 		public static async Task<Package> LoadAsync(IArchiveStorage storage, MetadataDescription metadataDescription, string directoryPath)
 		{
@@ -164,10 +165,14 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			{
 				var componentsQuery =
 					from relativeFilePath in await mStorage.ListAsync(typeDirectoryPath, pattern)
-					let fullPath = CombinePath(typeDirectoryPath, relativeFilePath)
-					let name = Path.GetFileNameWithoutExtension(relativeFilePath)
+					// Exclude meta files for types that have those.
+					where !typeDescription.HasMetaFile || !relativeFilePath.EndsWith(MetaFileNameSuffix)
+					let filePath = CombinePath(typeDirectoryPath, relativeFilePath)
+					// For types that have known extensions, component name is the file name minus the extension.
+					// For types that don't, component name is the full file name (including any extension).
+					let name = String.IsNullOrEmpty(typeDescription.ArchiveFileNameExtension) ? relativeFilePath : Path.GetFileNameWithoutExtension(relativeFilePath)
 					orderby name
-					select new Component(mStorage, typeDescription, name, fullPath);
+					select new Component(mStorage, typeDescription, name, filePath);
 				result.AddRange(componentsQuery);
 			}
 
@@ -181,15 +186,18 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			return await mStorage.GetExistsAsync(fullPath);
 		}
 
-		public async Task<Component> ImportComponentAsync(Component importComponent)
+		private async Task<Component> ImportComponentAsync(Component importComponent)
 		{
 			if (await GetComponentExistsAsync(importComponent.Type, importComponent.Name) == true)
 				throw new InvalidOperationException($"Cannot import component of type {importComponent.Type} named '{importComponent.Name}' because it already exists in this package.");
 
 			var typeDescription = mMetadataDescription.Types[importComponent.Type];
 			var name = importComponent.Name;
-			var fullPath = CombinePath(DirectoryPath, typeDescription.ArchiveDirectoryName, $"{name}.{typeDescription.ArchiveFileNameExtension}");
-			var newComponent = new Component(mStorage, typeDescription, name, fullPath);
+			// For types that have known extensions, file name should be component name plus the extension.
+			// For types that don't, file name should be just the component name (which includes any extension).
+			var fileName = !String.IsNullOrEmpty(typeDescription.ArchiveFileNameExtension) ? $"{name}.{typeDescription.ArchiveFileNameExtension}" : name;
+			var filePath = CombinePath(DirectoryPath, typeDescription.ArchiveDirectoryName, fileName);
+			var newComponent = new Component(mStorage, typeDescription, name, filePath);
 
 			await newComponent.CopyFromAsync(importComponent);
 

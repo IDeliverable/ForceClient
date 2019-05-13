@@ -23,7 +23,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			FilePath = filePath;
 
 			if (mTypeDescription.HasMetaFile)
-				MetaFilePath = $"{FilePath}-meta.xml";
+				MetaFilePath = $"{FilePath}{Package.MetaFileNameSuffix}";
 		}
 
 		private readonly IArchiveStorage mStorage;
