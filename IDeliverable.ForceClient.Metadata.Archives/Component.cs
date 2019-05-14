@@ -14,22 +14,42 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 {
 	public class Component : IEquatable<Component>
 	{
+		public static IEnumerable<NestedComponent> ParseNestedComponents(MetadataTypeDescription componentTypeDescription, string componentName, XDocument doc)
+		{
+			var nestedElementNameTypes =
+				componentTypeDescription.NestedTypes
+					.ToDictionary(x => x.ElementName);
+
+			var result =
+				doc.Root.Elements()
+					.Where(element => nestedElementNameTypes.ContainsKey(element.Name.LocalName))
+					.Select(element =>
+					{
+						var nestedTypeDescription = nestedElementNameTypes[element.Name.LocalName];
+						var nestedComponentName = element.Elements().SingleOrDefault(childElement => childElement.Name.LocalName == nestedTypeDescription.KeyChildElementName)?.Value;
+						return new NestedComponent(nestedTypeDescription, $"{componentName}.{nestedComponentName}", element);
+					})
+					.ToArray();
+
+			return result;
+		}
+
 		internal Component(IArchiveStorage storage, MetadataTypeDescription typeDescription, string name, string filePath)
 		{
 			mStorage = storage;
-			mTypeDescription = typeDescription;
 
+			TypeDescription = typeDescription;
 			Name = name;
 			FilePath = filePath;
 
-			if (mTypeDescription.HasMetaFile)
+			if (TypeDescription.HasMetaFile)
 				MetaFilePath = $"{FilePath}{Package.MetaFileNameSuffix}";
 		}
 
 		private readonly IArchiveStorage mStorage;
-		private readonly MetadataTypeDescription mTypeDescription;
 
-		public string Type => mTypeDescription.Name;
+		public string Type => TypeDescription.Name;
+		public MetadataTypeDescription TypeDescription { get; }
 		public string Name { get; }
 		public string FilePath { get; }
 		public string MetaFilePath { get; }
@@ -55,13 +75,13 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		{
 			VerifyIsSame(other);
 
-			if (!mTypeDescription.HasNestedTypes)
+			if (!TypeDescription.HasNestedTypes)
 				return;
 
 			// Maybe check here if it's a valid XML file. For now, the assumption is that if the type has nested types, it must be in XML format.
 
 			var doc = await LoadDocumentAsync();
-			var nestedComponents = GetNestedComponents(doc);
+			var nestedComponents = ParseNestedComponents(TypeDescription, Name, doc);
 			var otherNestedComponents = await other.GetNestedComponentsAsync();
 
 			var componentsToAdd = otherNestedComponents.Except(nestedComponents);
@@ -78,7 +98,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			using (var readStream = await other.OpenReadAsync())
 				await WriteAsync(readStream);
 
-			if (mTypeDescription.HasMetaFile)
+			if (TypeDescription.HasMetaFile)
 			{
 				using (var metaFileReadStream = await other.OpenMetaFileReadAsync())
 					await WriteMetaFileAsync(metaFileReadStream);
@@ -108,7 +128,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		{
 			VerifyIsSame(previous);
 
-			if (!mTypeDescription.HasNestedTypes)
+			if (!TypeDescription.HasNestedTypes)
 				return Enumerable.Empty<(string type, string name)>();
 
 			var nested = await GetNestedComponentsAsync();
@@ -125,12 +145,36 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 		public async Task<IEnumerable<NestedComponent>> GetNestedComponentsAsync()
 		{
-			if (!mTypeDescription.HasNestedTypes)
+			if (!TypeDescription.HasNestedTypes)
 				return Enumerable.Empty<NestedComponent>();
 
 			var doc = await LoadDocumentAsync();
-			var result = GetNestedComponents(doc);
+			var result = ParseNestedComponents(TypeDescription, Name, doc);
 			return result;
+		}
+
+		public async Task<XDocument> LoadDocumentAsync()
+		{
+			XDocument doc = null;
+			using (var readStream = await OpenReadAsync())
+				doc = await XDocument.LoadAsync(readStream, LoadOptions.None, CancellationToken.None);
+			return doc;
+		}
+
+		public async Task SaveDocumentAsync(XDocument doc)
+		{
+			using (var writeStream = await OpenWriteAsync())
+			{
+				var settings = new XmlWriterSettings()
+				{
+					IndentChars = "  ",
+					Indent = true,
+					Encoding = Encoding.UTF8
+				};
+
+				using (var writer = XmlWriter.Create(writeStream, settings))
+					doc.Save(writer);
+			}
 		}
 
 		public Task<Stream> OpenReadAsync()
@@ -150,7 +194,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 		public Task<Stream> OpenMetaFileReadAsync()
 		{
-			if (!mTypeDescription.HasMetaFile)
+			if (!TypeDescription.HasMetaFile)
 				throw new Exception($"Components of type {Type} do not have meta files.");
 
 			return mStorage.OpenReadAsync(MetaFilePath);
@@ -158,7 +202,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 		public Task<Stream> OpenMetaFileWriteAsync()
 		{
-			if (!mTypeDescription.HasMetaFile)
+			if (!TypeDescription.HasMetaFile)
 				throw new Exception($"Components of type {Type} do not have meta files.");
 
 			return mStorage.OpenWriteAsync(MetaFilePath);
@@ -166,7 +210,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 		public Task WriteMetaFileAsync(Stream content)
 		{
-			if (!mTypeDescription.HasMetaFile)
+			if (!TypeDescription.HasMetaFile)
 				throw new Exception($"Components of type {Type} do not have meta files.");
 
 			return mStorage.WriteAsync(MetaFilePath, content);
@@ -176,52 +220,8 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		{
 			await mStorage.DeleteAsync(FilePath);
 
-			if (mTypeDescription.HasMetaFile)
+			if (TypeDescription.HasMetaFile)
 				await mStorage.DeleteAsync(MetaFilePath);
-		}
-
-		private async Task<XDocument> LoadDocumentAsync()
-		{
-			XDocument doc = null;
-			using (var readStream = await OpenReadAsync())
-				doc = await XDocument.LoadAsync(readStream, LoadOptions.None, CancellationToken.None);
-			return doc;
-		}
-
-		private async Task SaveDocumentAsync(XDocument doc)
-		{
-			using (var writeStream = await OpenWriteAsync())
-			{
-				var settings = new XmlWriterSettings()
-				{
-					IndentChars = "  ",
-					Indent = true,
-					Encoding = Encoding.UTF8
-				};
-
-				using (var writer = XmlWriter.Create(writeStream, settings))
-					doc.Save(writer);
-			}
-		}
-
-		private IEnumerable<NestedComponent> GetNestedComponents(XDocument doc)
-		{
-			var nestedElementNameTypes =
-				mTypeDescription.NestedTypes
-					.ToDictionary(x => x.ElementName);
-
-			var result =
-				doc.Root.Elements()
-					.Where(element => nestedElementNameTypes.ContainsKey(element.Name.LocalName))
-					.Select(element =>
-					{
-						var nestedType = nestedElementNameTypes[element.Name.LocalName];
-						var nestedComponentName = element.Elements().SingleOrDefault(childElement => childElement.Name.LocalName == nestedType.KeyChildElementName)?.Value;
-						return new NestedComponent(nestedType.Name, $"{Name}.{nestedComponentName}", element);
-					})
-					.ToArray();
-
-			return result;
 		}
 
 		private void VerifyIsSame(Component other)

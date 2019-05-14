@@ -100,13 +100,13 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		private Archive(IArchiveStorage storage, MetadataDescription metadataDescription, bool isSinglePackage)
 		{
 			mStorage = storage;
-			mMetadataDescription = metadataDescription;
+			MetadataDescription = metadataDescription;
 			IsSinglePackage = isSinglePackage;
 		}
 
 		private readonly IArchiveStorage mStorage;
-		private readonly MetadataDescription mMetadataDescription;
 
+		public MetadataDescription MetadataDescription { get; }
 		public bool IsSinglePackage { get; }
 
 		public async Task MergeFromAsync(Archive other)
@@ -168,14 +168,14 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		public async Task<IEnumerable<Package>> GetPackagesAsync()
 		{
 			if (IsSinglePackage)
-				return new[] { await Package.LoadAsync(mStorage, mMetadataDescription, directoryPath: null) };
+				return new[] { await Package.LoadAsync(mStorage, MetadataDescription, directoryPath: null) };
 
 			var filePaths = await mStorage.ListAsync(directoryPath: null);
 			var subdirectoryNames = GetSubdirectoryNames(filePaths);
 
 			var packages = new List<Package>();
 			foreach (var subdirectoryName in subdirectoryNames)
-				packages.Add(await Package.LoadAsync(mStorage, mMetadataDescription, subdirectoryName));
+				packages.Add(await Package.LoadAsync(mStorage, MetadataDescription, subdirectoryName));
 
 			return packages.ToArray();
 		}
@@ -197,7 +197,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			}
 
 			var newPackageDirectoryPath = IsSinglePackage ? null : name;
-			var newPackage = new DeltaPackage(mStorage, mMetadataDescription, name, newPackageDirectoryPath);
+			var newPackage = new DeltaPackage(mStorage, MetadataDescription, name, newPackageDirectoryPath);
 			await newPackage.WriteManifestAsync(defaultApiVersion: null);
 
 			return newPackage;
@@ -216,7 +216,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 				throw new InvalidOperationException($"Cannot import package '{importPackage.Name}' because it already exists in this archive.");
 
 			var newPackageDirectoryPath = IsSinglePackage ? null : importPackage.Name;
-			var newPackage = new Package(mStorage, mMetadataDescription, importPackage.Name, newPackageDirectoryPath);
+			var newPackage = new Package(mStorage, MetadataDescription, importPackage.Name, newPackageDirectoryPath);
 			await newPackage.MergeFromAsync(importPackage, propertiesOnly: false);
 
 			return newPackage;

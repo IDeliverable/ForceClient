@@ -45,17 +45,17 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		internal Package(IArchiveStorage storage, MetadataDescription metadataDescription, string name, string directoryPath)
 		{
 			mStorage = storage;
-			mMetadataDescription = metadataDescription;
 			mManifestFilePath = CombinePath(directoryPath, ManifestFileName);
 
+			MetadataDescription = metadataDescription;
 			Name = name;
 			DirectoryPath = directoryPath;
 		}
 
 		private readonly IArchiveStorage mStorage;
-		private readonly MetadataDescription mMetadataDescription;
 		private readonly string mManifestFilePath;
 
+		public MetadataDescription MetadataDescription { get; }
 		public string Name { get; }
 		public string DirectoryPath { get; }
 
@@ -153,7 +153,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		public async Task<IEnumerable<Component>> GetComponentsAsync()
 		{
 			var typeDirectoryPatternsQuery =
-				from typeDescription in mMetadataDescription.Types.Values
+				from typeDescription in MetadataDescription.Types.Values
 				let typeDirectoryPath = CombinePath(DirectoryPath, typeDescription.ArchiveDirectoryName)
 				let pattern = !String.IsNullOrEmpty(typeDescription.ArchiveFileNameExtension) ? $"*.{typeDescription.ArchiveFileNameExtension}" : null
 				orderby typeDescription.Name
@@ -181,7 +181,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 		public async Task<bool> GetComponentExistsAsync(string type, string name)
 		{
-			var typeDescription = mMetadataDescription.Types[type];
+			var typeDescription = MetadataDescription.Types[type];
 			var fullPath = CombinePath(DirectoryPath, typeDescription.ArchiveDirectoryName, $"{name}.{typeDescription.ArchiveFileNameExtension}");
 			return await mStorage.GetExistsAsync(fullPath);
 		}
@@ -191,7 +191,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			if (await GetComponentExistsAsync(importComponent.Type, importComponent.Name) == true)
 				throw new InvalidOperationException($"Cannot import component of type {importComponent.Type} named '{importComponent.Name}' because it already exists in this package.");
 
-			var typeDescription = mMetadataDescription.Types[importComponent.Type];
+			var typeDescription = MetadataDescription.Types[importComponent.Type];
 			var name = importComponent.Name;
 			// For types that have known extensions, file name should be component name plus the extension.
 			// For types that don't, file name should be just the component name (which includes any extension).

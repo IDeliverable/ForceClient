@@ -1,18 +1,20 @@
 using System;
 using System.Xml.Linq;
+using IDeliverable.ForceClient.Metadata.Describe;
 
 namespace IDeliverable.ForceClient.Metadata.Archives
 {
 	public class NestedComponent : IEquatable<NestedComponent>
 	{
-		internal NestedComponent(string type, string name, XElement xml)
+		internal NestedComponent(NestedMetadataTypeDescription typeDescription, string name, XElement xml)
 		{
-			Type = type;
+			TypeDescription = typeDescription;
 			Name = name;
 			Xml = xml;
 		}
 
-		public string Type { get; }
+		public NestedMetadataTypeDescription TypeDescription { get; }
+		public string Type => TypeDescription.Name;
 		public string Name { get; }
 		public XElement Xml { get; }
 

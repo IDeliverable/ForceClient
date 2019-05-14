@@ -65,7 +65,13 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 
 			await target.Completion;
 
-			return result;
+			return
+				result
+					.Distinct()
+					.OrderBy(x => x.Type)
+					.ThenBy(x => x.Name)
+					.ThenBy(x => x.Id)
+					.ToArray();
 		}
 
 		public async Task<RetrieveResultInfo> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemQueries, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory)

@@ -7,7 +7,11 @@ namespace IDeliverable.ForceClient.Metadata.Client
 	{
 		public static bool IsInPackage(this FileProperties fileProperties)
 		{
-			return fileProperties.manageableState != ManageableState.unmanaged || !String.IsNullOrEmpty(fileProperties.namespacePrefix);
+			// INFO: Not sure which logic would be correct here given what we are trying to do. If we only include "unmanaged"
+			// components then things like standard objects (which can be customized) will not be included because those are in state
+			// "released".
+			//return fileProperties.manageableState != ManageableState.unmanaged || !String.IsNullOrEmpty(fileProperties.namespacePrefix);
+			return !String.IsNullOrEmpty(fileProperties.namespacePrefix);
 		}
 
 		public static MetadataItemInfo AsMetadataItemInfo(this FileProperties fileProperties)
@@ -24,7 +28,7 @@ namespace IDeliverable.ForceClient.Metadata.Client
 				fileProperties.lastModifiedByName,
 				fileProperties.lastModifiedDate.ToUniversalTime(),
 				fileProperties.IsInPackage(),
-				fileProperties.namespacePrefix);
+				fileProperties.namespacePrefix == "" ? null : fileProperties.namespacePrefix);
 		}
 	}
 }

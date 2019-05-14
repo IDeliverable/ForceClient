@@ -2,7 +2,7 @@ using System;
 
 namespace IDeliverable.ForceClient.Metadata
 {
-	public class MetadataItemInfo
+	public class MetadataItemInfo : IEquatable<MetadataItemInfo>
 	{
 		public MetadataItemInfo(string id, string name, string type, string filePath, string createdById, string createdByName, DateTime createdUtc, string lastModifiedById, string lastModifiedByName, DateTime lastModifiedUtc, bool isInPackage, string namespacePrefix)
 		{
@@ -32,5 +32,22 @@ namespace IDeliverable.ForceClient.Metadata
 		public DateTime LastModifiedUtc { get; }
 		public bool IsInPackage { get; }
 		public string NamespacePrefix { get; }
+
+		public bool Equals(MetadataItemInfo other)
+		{
+			if (other == null)
+				return false;
+			return Type == other.Type && Name == other.Name && Id == other.Id;
+		}
+
+		public override bool Equals(object other)
+		{
+			return Equals(other as MetadataItemInfo);
+		}
+
+		public override int GetHashCode()
+		{
+			return (Type, Name, Id).GetHashCode();
+		}
 	}
 }

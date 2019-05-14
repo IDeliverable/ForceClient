@@ -14,7 +14,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 {
 	public class PackageManifest
 	{
-		private static readonly XNamespace mNamespace = XNamespace.Get("http://soap.sforce.com/2006/04/metadata");
+		private static readonly XNamespace sNamespace = XNamespace.Get("http://soap.sforce.com/2006/04/metadata");
 
 		internal static async Task<PackageManifest> LoadAsync(IArchiveStorage storage, string filePath)
 		{
@@ -41,7 +41,7 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			var rootElement = doc.Root;
 			var namespaceName = rootElement.Name.NamespaceName;
 
-			if (namespaceName != mNamespace)
+			if (namespaceName != sNamespace)
 				throw new ArgumentException($"The element '{rootElement.Name}' is not supported.");
 
 			// Only present for managed packages.
@@ -101,32 +101,32 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 
 			// Only present for managed packages.
 			if (!String.IsNullOrEmpty(Name) && Name != "unpackaged")
-				elements.Add(new XElement(mNamespace + "fullName", Name));
+				elements.Add(new XElement(sNamespace + "fullName", Name));
 			if (ApiAccessLevel.HasValue)
-				elements.Add(new XElement(mNamespace + "apiAccessLevel", ApiAccessLevel.Value.ToString()));
+				elements.Add(new XElement(sNamespace + "apiAccessLevel", ApiAccessLevel.Value.ToString()));
 			if (!String.IsNullOrEmpty(Description))
-				elements.Add(new XElement(mNamespace + "description", Description));
+				elements.Add(new XElement(sNamespace + "description", Description));
 			if (!String.IsNullOrEmpty(NamespacePrefix))
-				elements.Add(new XElement(mNamespace + "namespacePrefix", NamespacePrefix));
+				elements.Add(new XElement(sNamespace + "namespacePrefix", NamespacePrefix));
 			if (!String.IsNullOrEmpty(SetupWeblink))
-				elements.Add(new XElement(mNamespace + "setupWeblink", SetupWeblink));
+				elements.Add(new XElement(sNamespace + "setupWeblink", SetupWeblink));
 
 			var componentElements =
 				from component in Components
 				group component.name by component.type into typeGroup
 				orderby typeGroup.Key
-				select new XElement(mNamespace + "types",
+				select new XElement(sNamespace + "types",
 					from member in typeGroup
 					orderby member
-					select new XElement(mNamespace + "members", member),
-					new XElement(mNamespace + "name", typeGroup.Key)
+					select new XElement(sNamespace + "members", member),
+					new XElement(sNamespace + "name", typeGroup.Key)
 				);
 			elements.AddRange(componentElements);
 
 			if (ApiVersion.HasValue)
-				elements.Add(new XElement(mNamespace + "version", ApiVersion.Value.ToString("F1", CultureInfo.InvariantCulture)));
+				elements.Add(new XElement(sNamespace + "version", ApiVersion.Value.ToString("F1", CultureInfo.InvariantCulture)));
 
-			var rootElement = new XElement(mNamespace + "Package", elements);
+			var rootElement = new XElement(sNamespace + "Package", elements);
 			var doc = new XDocument(rootElement);
 
 			using (var writeStream = await storage.OpenWriteAsync(filePath))
