@@ -169,11 +169,12 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 				{
 					IndentChars = "  ",
 					Indent = true,
-					Encoding = Encoding.UTF8
+					Encoding = Encoding.UTF8,
+					Async = true
 				};
 
 				using (var writer = XmlWriter.Create(writeStream, settings))
-					doc.Save(writer);
+					await doc.SaveAsync(writer, CancellationToken.None);
 			}
 		}
 
