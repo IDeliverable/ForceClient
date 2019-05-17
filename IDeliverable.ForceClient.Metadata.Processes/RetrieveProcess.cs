@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -7,6 +8,7 @@ using IDeliverable.ForceClient.Core.OrgAccess;
 using IDeliverable.ForceClient.Metadata.Archives;
 using IDeliverable.ForceClient.Metadata.Archives.Storage;
 using IDeliverable.ForceClient.Metadata.Client;
+using IDeliverable.ForceClient.Metadata.Describe;
 using IDeliverable.Utils.Core.CollectionExtensions;
 using Microsoft.Extensions.Logging;
 
@@ -74,64 +76,144 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 					.ToArray();
 		}
 
-		public async Task<RetrieveResultInfo> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemQueries, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory)
+		public async Task RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> unpackagedItemQueries, IEnumerable<string> packageNames, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, int batchSize)
 		{
-			var result = new RetrieveResultInfo();
+			if (batchSize < 1 || batchSize > mMetadataRules.MaxRetrieveMetadataItemsPerRequest)
+				throw new ArgumentOutOfRangeException(nameof(batchSize), $"Argument '{nameof(batchSize)}' must be between 1 and {mMetadataRules.MaxRetrieveMetadataItemsPerRequest}.");
 
-			if (!itemQueries.Any())
-				return result;
+			unpackagedItemQueries = unpackagedItemQueries ?? new MetadataRetrieveItemQuery[] { };
+			packageNames = packageNames ?? new string[] { };
 
-			// This method support retrieving more metadata items than what the Metadata API
-			// supports in one operation, by partitioning the list of items into chunks,
-			// querying the API once per chunk, and then merging the resulting ZIP files into
-			// one before returning.
+			if (!unpackagedItemQueries.Any() && !packageNames.Any())
+				return;
 
-			var itemQueryPartitions = itemQueries.Partition(mMetadataRules.MaxRetrieveMetadataItemsPerRequest);
+			var retrieveBatch = new TransformBlock<BatchInfo, BatchInfo>(RetrieveBatchAsync, Parallelism(mMetadataRules.MaxConcurrentRetrieveMetadataRequests));
+			var createTempArchive = new TransformBlock<BatchInfo, BatchInfo>(CreateTempArchiveAsync, Parallelism(Environment.ProcessorCount));
+			var mergeTempToTargetArchive = new ActionBlock<BatchInfo>(MergeTempToTargetArchiveAsync);
 
-			var numItemsTotal = itemQueries.Count();
-			var numItemsRetrieved = 0;
-
-			mLogger.LogInformation($"Retrieving {itemQueries.Count()} items in {itemQueryPartitions.Count()} batches...");
-
+			var linkOptions = new DataflowLinkOptions() { PropagateCompletion = true };
+			retrieveBatch.LinkTo(createTempArchive, linkOptions);
+			createTempArchive.LinkTo(mergeTempToTargetArchive, linkOptions);
+			
 			var client = mClientFactory.CreateClient(orgType, username);
 			var metadataDescription = await client.DescribeAsync();
 
-			foreach (var itemQueryPartition in itemQueryPartitions)
+			if (unpackagedItemQueries.Any())
 			{
-				RetrieveResult retrieveResult = null;
-
-				try
-				{
-					var operationId = await client.StartRetrieveAsync(itemQueryPartition, packageNames: null, singlePackage: true);
-
-					while (!(retrieveResult = await client.GetRetrieveResultAsync(operationId)).IsDone)
-						await Task.Delay(TimeSpan.FromSeconds(3));
-				}
-				catch (Exception ex)
-				{
-					mLogger.LogError(ex, "Error during retrieve of a batch; output metadata will be incomplete.");
-					numItemsRetrieved += itemQueryPartition.Count();
-					//foreach (var itemReference in itemQueryPartition)
-					//	result.Add(itemReference, false);
-					continue;
-				}
-
-				var tempArchiveStorage = tempStorageFactory();
-				await tempArchiveStorage.LoadFromZipAsync(retrieveResult.ZipFile);
-				var tempArchive = await Archive.LoadAsync(tempArchiveStorage, metadataDescription);
-
-				await targetArchive.MergeFromAsync(tempArchive);
-
-				numItemsRetrieved += itemQueryPartition.Count();
-				//foreach (var itemReference in itemQueryPartition)
-				//	result.Add(itemReference, true);
-
-				mLogger.LogInformation($"{numItemsRetrieved}/{numItemsTotal} items retrieved ({Decimal.Divide(numItemsRetrieved, numItemsTotal):P0})");
+				var itemQueryPartitions = unpackagedItemQueries.Partition(batchSize);
+				mLogger.LogInformation($"Retrieving {unpackagedItemQueries.Count()} unpackaged items in {itemQueryPartitions.Count()} batches...");
+				foreach (var itemQueryPartition in itemQueryPartitions)
+					retrieveBatch.Post(new BatchInfo(client, metadataDescription, targetArchive, tempStorageFactory, itemQueryPartition));
 			}
 
-			mLogger.LogInformation("All items successfully retrieved.");
+			if (packageNames.Any())
+			{
+				mLogger.LogInformation($"Retrieving {packageNames.Count()} packages...");
+				foreach (var packageName in packageNames)
+					retrieveBatch.Post(new BatchInfo(client, metadataDescription, targetArchive, tempStorageFactory, packageName));
+			}
 
-			return result;
+			retrieveBatch.Complete();
+
+			await mergeTempToTargetArchive.Completion;
+		}
+
+		private async Task<BatchInfo> RetrieveBatchAsync(BatchInfo batchInfo)
+		{
+			mLogger.LogInformation($"Retrieving batch {batchInfo.BatchId}...");
+
+			var sw = new Stopwatch();
+			sw.Start();
+
+			var packageNames = batchInfo.PackageName != null ? new string[] { batchInfo.PackageName } : null;
+			var operationId = await batchInfo.MetadataClient.StartRetrieveAsync(batchInfo.UnpackagedItemQueries, packageNames, singlePackage: true);
+
+			RetrieveResult retrieveResult;
+			while (!(retrieveResult = await batchInfo.MetadataClient.GetRetrieveResultAsync(operationId)).IsDone)
+				await Task.Delay(TimeSpan.FromSeconds(3));
+
+			batchInfo.ZipFile = retrieveResult.ZipFile;
+
+			sw.Stop();
+
+			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully retrieved in {sw.Elapsed.TotalSeconds:F3} seconds.");
+
+			return batchInfo;
+		}
+
+		private async Task<BatchInfo> CreateTempArchiveAsync(BatchInfo batchInfo)
+		{
+			mLogger.LogInformation($"Extracting batch {batchInfo.BatchId}...");
+
+			var tempArchiveStorage = batchInfo.CreateTempStorage();
+			await tempArchiveStorage.LoadFromZipAsync(batchInfo.ZipFile);
+			batchInfo.TempArchive = await Archive.LoadAsync(tempArchiveStorage, batchInfo.MetadataDescription);
+
+			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully extracted.");
+
+			return batchInfo;
+		}
+
+		private async Task MergeTempToTargetArchiveAsync(BatchInfo batchInfo)
+		{
+			mLogger.LogInformation($"Merging batch {batchInfo.BatchId} into target archive...");
+
+			await batchInfo.TargetArchive.MergeFromAsync(batchInfo.TempArchive);
+
+			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully merged into target archive.");
+		}
+
+		private ExecutionDataflowBlockOptions Parallelism(int maxDegreeOfParallelism)
+		{
+			return new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism, EnsureOrdered = false };
+		}
+
+		private struct BatchInfo
+		{
+			public BatchInfo(IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, IEnumerable<MetadataRetrieveItemQuery> unpackagedItemQueries)
+			{
+				if (unpackagedItemQueries == null || !unpackagedItemQueries.Any())
+					throw new ArgumentException("No unpackaged item queries specified.");
+
+				MetadataClient = metadataClient;
+				MetadataDescription = metadataDescription;
+				TargetArchive = targetArchive;
+				CreateTempStorage = tempStorageFactory;
+				UnpackagedItemQueries = unpackagedItemQueries;
+				PackageName = null;
+				BatchId = Guid.NewGuid();
+
+				ZipFile = null;
+				TempArchive = null;
+			}
+
+			public BatchInfo(IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, string packageName)
+			{
+				if (String.IsNullOrEmpty(packageName))
+					throw new ArgumentException("No package name specified.");
+
+				MetadataClient = metadataClient;
+				MetadataDescription = metadataDescription;
+				TargetArchive = targetArchive;
+				CreateTempStorage = tempStorageFactory;
+				UnpackagedItemQueries = null;
+				PackageName = packageName;
+				BatchId = Guid.NewGuid();
+
+				ZipFile = null;
+				TempArchive = null;
+			}
+
+			public readonly IMetadataClient MetadataClient;
+			public readonly MetadataDescription MetadataDescription;
+			public readonly Archive TargetArchive;
+			public readonly Func<IArchiveStorage> CreateTempStorage;
+			public readonly IEnumerable<MetadataRetrieveItemQuery> UnpackagedItemQueries;
+			public readonly string PackageName;
+			public readonly Guid BatchId;
+
+			public byte[] ZipFile;
+			public Archive TempArchive;
 		}
 	}
 }

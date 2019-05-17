@@ -10,6 +10,6 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 	public interface IRetrieveProcess
 	{
 		Task<IEnumerable<MetadataItemInfo>> ListItemsOfTypesAsync(OrgType orgType, string username, IEnumerable<string> types, bool includePackages);
-		Task<RetrieveResultInfo> RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> itemQueries, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory);
+		Task RetrieveAsync(OrgType orgType, string username, IEnumerable<MetadataRetrieveItemQuery> unpackagedItemQueries, IEnumerable<string> packageNames, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, int batchSize);
 	}
 }
