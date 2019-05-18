@@ -98,19 +98,21 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 			var client = mClientFactory.CreateClient(orgType, username);
 			var metadataDescription = await client.DescribeAsync();
 
+			var batchNumber = 1;
+
 			if (unpackagedItemQueries.Any())
 			{
 				var itemQueryPartitions = unpackagedItemQueries.Partition(batchSize);
 				mLogger.LogInformation($"Retrieving {unpackagedItemQueries.Count()} unpackaged items in {itemQueryPartitions.Count()} batches...");
 				foreach (var itemQueryPartition in itemQueryPartitions)
-					retrieveBatch.Post(new BatchInfo(client, metadataDescription, targetArchive, tempStorageFactory, itemQueryPartition));
+					retrieveBatch.Post(new BatchInfo(batchNumber++, client, metadataDescription, targetArchive, tempStorageFactory, itemQueryPartition));
 			}
 
 			if (packageNames.Any())
 			{
 				mLogger.LogInformation($"Retrieving {packageNames.Count()} packages...");
 				foreach (var packageName in packageNames)
-					retrieveBatch.Post(new BatchInfo(client, metadataDescription, targetArchive, tempStorageFactory, packageName));
+					retrieveBatch.Post(new BatchInfo(batchNumber++, client, metadataDescription, targetArchive, tempStorageFactory, packageName));
 			}
 
 			retrieveBatch.Complete();
@@ -120,7 +122,7 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 
 		private async Task<BatchInfo> RetrieveBatchAsync(BatchInfo batchInfo)
 		{
-			mLogger.LogInformation($"Retrieving batch {batchInfo.BatchId}...");
+			mLogger.LogInformation($"Retrieving batch #{batchInfo.BatchNumber}...");
 
 			var sw = new Stopwatch();
 			sw.Start();
@@ -136,31 +138,31 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 
 			sw.Stop();
 
-			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully retrieved in {sw.Elapsed.TotalSeconds:F3} seconds.");
+			mLogger.LogInformation($"Batch #{batchInfo.BatchNumber} successfully retrieved in {sw.Elapsed.TotalSeconds:F3} seconds.");
 
 			return batchInfo;
 		}
 
 		private async Task<BatchInfo> CreateTempArchiveAsync(BatchInfo batchInfo)
 		{
-			mLogger.LogInformation($"Extracting batch {batchInfo.BatchId}...");
+			mLogger.LogInformation($"Extracting batch #{batchInfo.BatchNumber}...");
 
 			var tempArchiveStorage = batchInfo.CreateTempStorage();
 			await tempArchiveStorage.LoadFromZipAsync(batchInfo.ZipFile);
 			batchInfo.TempArchive = await Archive.LoadAsync(tempArchiveStorage, batchInfo.MetadataDescription);
 
-			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully extracted.");
+			mLogger.LogInformation($"Batch #{batchInfo.BatchNumber} successfully extracted.");
 
 			return batchInfo;
 		}
 
 		private async Task MergeTempToTargetArchiveAsync(BatchInfo batchInfo)
 		{
-			mLogger.LogInformation($"Merging batch {batchInfo.BatchId} into target archive...");
+			mLogger.LogInformation($"Merging batch #{batchInfo.BatchNumber} into target archive...");
 
 			await batchInfo.TargetArchive.MergeFromAsync(batchInfo.TempArchive);
 
-			mLogger.LogInformation($"Batch {batchInfo.BatchId} successfully merged into target archive.");
+			mLogger.LogInformation($"Batch #{batchInfo.BatchNumber} successfully merged into target archive.");
 		}
 
 		private ExecutionDataflowBlockOptions Parallelism(int maxDegreeOfParallelism)
@@ -170,47 +172,47 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 
 		private struct BatchInfo
 		{
-			public BatchInfo(IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, IEnumerable<MetadataRetrieveItemQuery> unpackagedItemQueries)
+			public BatchInfo(int batchNumber, IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, IEnumerable<MetadataRetrieveItemQuery> unpackagedItemQueries)
 			{
 				if (unpackagedItemQueries == null || !unpackagedItemQueries.Any())
 					throw new ArgumentException("No unpackaged item queries specified.");
 
+				BatchNumber = batchNumber;
 				MetadataClient = metadataClient;
 				MetadataDescription = metadataDescription;
 				TargetArchive = targetArchive;
 				CreateTempStorage = tempStorageFactory;
 				UnpackagedItemQueries = unpackagedItemQueries;
 				PackageName = null;
-				BatchId = Guid.NewGuid();
 
 				ZipFile = null;
 				TempArchive = null;
 			}
 
-			public BatchInfo(IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, string packageName)
+			public BatchInfo(int batchNumber, IMetadataClient metadataClient, MetadataDescription metadataDescription, Archive targetArchive, Func<IArchiveStorage> tempStorageFactory, string packageName)
 			{
 				if (String.IsNullOrEmpty(packageName))
 					throw new ArgumentException("No package name specified.");
 
+				BatchNumber = batchNumber;
 				MetadataClient = metadataClient;
 				MetadataDescription = metadataDescription;
 				TargetArchive = targetArchive;
 				CreateTempStorage = tempStorageFactory;
 				UnpackagedItemQueries = null;
 				PackageName = packageName;
-				BatchId = Guid.NewGuid();
 
 				ZipFile = null;
 				TempArchive = null;
 			}
 
+			public readonly int BatchNumber;
 			public readonly IMetadataClient MetadataClient;
 			public readonly MetadataDescription MetadataDescription;
 			public readonly Archive TargetArchive;
 			public readonly Func<IArchiveStorage> CreateTempStorage;
 			public readonly IEnumerable<MetadataRetrieveItemQuery> UnpackagedItemQueries;
 			public readonly string PackageName;
-			public readonly Guid BatchId;
 
 			public byte[] ZipFile;
 			public Archive TempArchive;
