@@ -109,6 +109,13 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		public MetadataDescription MetadataDescription { get; }
 		public bool IsSinglePackage { get; }
 
+		public async Task CleanAsync()
+		{
+			var packages = await GetPackagesAsync();
+			foreach (var package in packages)
+				await package.CleanAsync();
+		}
+
 		public async Task MergeFromAsync(Archive other)
 		{
 			// INFO: Merging another archive into this archive is done primarily to support

@@ -62,6 +62,12 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
 		Task DeleteAsync(string filePath);
 
 		/// <summary>
+		/// Deletes a logical directory and any files and logical subdirectories contained in it.
+		/// </summary>
+		/// <param name="directoryPath">The path of the logical directory to delete. If the logical directory doesn't exist, this method will simply return.</param>
+		Task DeleteDirectoryAsync(string directoryPath);
+
+		/// <summary>
 		/// Returns metadata properties of a file.
 		/// </summary>
 		/// <param name="filePath">The path of the file whose properties to return.</param>

@@ -139,6 +139,25 @@ namespace IDeliverable.ForceClient.Metadata.Archives.Storage
 			}
 		}
 
+		public virtual Task DeleteDirectoryAsync(string directoryPath)
+		{
+			var normalizedDirectoryPath = NormalizePath(directoryPath);
+
+			try
+			{
+				var absoluteDirectoryPath = Path.Combine(BasePath, normalizedDirectoryPath);
+
+				if (Directory.Exists(absoluteDirectoryPath))
+					Directory.Delete(absoluteDirectoryPath, recursive: true);
+
+				return Task.CompletedTask;
+			}
+			catch (Exception ex)
+			{
+				throw new StorageException($"Error while deleting logical directory '{normalizedDirectoryPath}'.", ex);
+			}
+		}
+
 		public virtual Task<FileProperties> GetPropertiesAsync(string filePath)
 		{
 			var normalizedFilePath = NormalizePath(filePath);

@@ -76,6 +76,23 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			return Name.GetHashCode();
 		}
 
+		public async Task CleanAsync()
+		{
+			foreach (var typeDescription in MetadataDescription.Types.Values)
+			{
+				if (!String.IsNullOrEmpty(typeDescription.ArchiveDirectoryName))
+				{
+					string typeDirectoryPath;
+					if (!String.IsNullOrEmpty(DirectoryPath))
+						typeDirectoryPath = $"{DirectoryPath}/{typeDescription.ArchiveDirectoryName}";
+					else
+						typeDirectoryPath = typeDescription.ArchiveDirectoryName;
+
+					await mStorage.DeleteDirectoryAsync(typeDirectoryPath);
+				}
+			}
+		}
+
 		public async Task MergeFromAsync(Package other, bool propertiesOnly)
 		{
 			if (other.Name != Name)
