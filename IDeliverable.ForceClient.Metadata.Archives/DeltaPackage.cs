@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using IDeliverable.ForceClient.Metadata.Archives.Storage;
 using IDeliverable.ForceClient.Metadata.Describe;
@@ -67,6 +68,16 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			}
 			else
 				await mStorage.DeleteAsync(mDeletePostManifestFilePath);
+		}
+
+		protected override async Task WriteComponentToManifestAsync(PackageManifest manifest, Component component)
+		{
+			await base.WriteComponentToManifestAsync(manifest, component);
+
+			// In deployment packages manifests it's necessary to also include nested components.
+			var nestedComponents = await component.GetNestedComponentsAsync();
+			foreach (var nestedComponent in nestedComponents.OrderBy(x => x.Type).ThenBy(x => x.Name))
+				manifest.Components.Add((nestedComponent.Type, nestedComponent.Name));
 		}
 	}
 }

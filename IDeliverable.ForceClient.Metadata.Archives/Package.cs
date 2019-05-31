@@ -219,12 +219,8 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 			var manifest = await ReadManifestAsync() ?? new PackageManifest(Name, defaultApiVersion);
 
 			manifest.Components.Clear();
-			foreach (var component in components)
-			{
-				manifest.Components.Add((component.Type, component.Name));
-				foreach (var nestedComponent in await component.GetNestedComponentsAsync())
-					manifest.Components.Add((nestedComponent.Type, nestedComponent.Name));
-			}
+			foreach (var component in components.OrderBy(x => x.Type).ThenBy(x => x.Name))
+				await WriteComponentToManifestAsync(manifest, component);
 
 			await manifest.SaveAsync(mStorage, mManifestFilePath);
 		}
@@ -233,6 +229,12 @@ namespace IDeliverable.ForceClient.Metadata.Archives
 		{
 			// TODO: Implement Package.DeleteAsync()
 			throw new NotImplementedException();
+		}
+
+		protected virtual Task WriteComponentToManifestAsync(PackageManifest manifest, Component component)
+		{
+			manifest.Components.Add((component.Type, component.Name));
+			return Task.CompletedTask;
 		}
 	}
 }
