@@ -87,6 +87,14 @@ namespace IDeliverable.ForceClient.Metadata.Processes
 			if (!unpackagedItemQueries.Any() && !packageNames.Any())
 				return;
 
+			if (targetArchive.IsSinglePackage)
+			{
+				if (unpackagedItemQueries.Any() && packageNames.Any())
+					throw new Exception("Cannot retrieve both unpackaged items and packages because target is a single-package archive.");
+				if (packageNames.Count() > 1)
+					throw new Exception("Cannot retrieve more than one package because target is a single-package archive.");
+			}
+
 			var retrieveBatch = new TransformBlock<BatchInfo, BatchInfo>(RetrieveBatchAsync, Parallelism(mMetadataRules.MaxConcurrentRetrieveMetadataRequests));
 			var createTempArchive = new TransformBlock<BatchInfo, BatchInfo>(CreateTempArchiveAsync, Parallelism(Environment.ProcessorCount));
 			var mergeTempToTargetArchive = new ActionBlock<BatchInfo>(MergeTempToTargetArchiveAsync);
